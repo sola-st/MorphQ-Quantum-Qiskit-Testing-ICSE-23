@@ -14,9 +14,11 @@ Decisions:
 1. how to evaluate if the output is the same between two compilers? (remember that we are comparing distributions of bitstrings [0111010101: freq, etc...])
 	- statistical test on the mean of each bitstring
 	- statistical test on the mean of the top-K bitstring
+	- statistical test on each bit
 	- anomaly detection based (e.g., isolation forest based), to check if the points of the Distribution A are detected as outliers when compared to the points of the Distribution B (on which the model was trained on).
 	- check the statistics of a single qubit, check the statistics of pairs of qubits happening together, etc.. inspired by monograms, diagrams, etc.. in BLEU score.
 	- naive bayes: check if a trained naive bayes model, which is based on the single qubit occurrences, can learn to predict whether the datapoint comes from platform A or B. Note that Naive Bayes, has as assumption that the variable (in this case the qubit) are independent, whereas in our cas, due to the entanglement, they are not independent.
+	- run them in **state vector mode** and compare the state vectors (length: 2^n and numerical instability are possible).
 	- **right before execution, thus after the optimizations made by the platform,extract the QASM code and compare that between platforms**.
 
 
