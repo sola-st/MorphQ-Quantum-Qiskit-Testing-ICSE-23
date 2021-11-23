@@ -4,3 +4,4 @@
 data/random_bitstrings/*
 data/random_program_execution/*
 data/QASMBench/*
+data/nisq_qasm/*

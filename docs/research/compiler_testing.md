@@ -15,6 +15,9 @@ Decisions:
 	- statistical test on the mean of each bitstring
 	- statistical test on the mean of the top-K bitstring
 	- statistical test on each bit
+	- Kolmogorov-Smirnov (KS) test: The two-sample K–S test is one of the most useful and general nonparametric methods for comparing two samples, as it is sensitive to differences in both location and shape of the empirical cumulative distribution functions of the two samples.
+	- QDiff approach to compare simulations: "closeness testing in L1 norm [17] to estimate the required number of measurements given confidence level p = 2/3. [...] To compare two sets of measurements, QDiff uses distribution comparison methods: K-S and Cross Entropy are now supported."
+	- map the output to a two dimensional output (e.g. with t-sne, PCA) and use a 2D statistical test to compare.
 	- anomaly detection based (e.g., isolation forest based), to check if the points of the Distribution A are detected as outliers when compared to the points of the Distribution B (on which the model was trained on).
 	- check the statistics of a single qubit, check the statistics of pairs of qubits happening together, etc.. inspired by monograms, diagrams, etc.. in BLEU score.
 	- naive bayes: check if a trained naive bayes model, which is based on the single qubit occurrences, can learn to predict whether the datapoint comes from platform A or B. Note that Naive Bayes, has as assumption that the variable (in this case the qubit) are independent, whereas in our cas, due to the entanglement, they are not independent.
@@ -28,6 +31,12 @@ Decisions:
 	- focus on one platform only; generate 2096 outputs from a single quantum program for the same platform. The method should not raise any alarm/positive, because the distributions are identical by construction, since produced by the same platform. (realistic TRUE NEGATIVE WORKs)
 	- focus on a pool of famous algorithms, already present in the official repos of both libraries; run them on both A and B platforms; collect the outputs. Assumption: those implementations are corrected and have been independently tested. Check if our magic-test do not raise false positive among those, which are supposedly correctly implemented. (real TRUE NEGATIVE cross-platform) (low FALSE POSITIVE on gold standard programs).
 	- focus on one platform only; execute the Qasm program to get distribution A, then append one or more CNOT to the end (before the measurement) and execute it to get distribution B. Assumption: the CNOT highly impacted the program, thus the output should be different. We expect the model to raise an alarm for all of the pairs. (realistic TRUE POSITIVE WORKs).
+	- focus on one platform, running program A and Program B, they should be distinguished as two different distributions by our method.
+	- develop a method which is provable correct and returns "these distributions are the same" only when there are actually the same. No false positive.
+	- develop a method which is provable correct and returns "these distributions are different" only when there are actually different. No false negative.
+	- run Program 1 in Framework A, the method should distinguish the distribution of P1 and the output of P1 where we reverse all the qubits.
+
+
 
 
 1. How to find the  bug triggering quantum program?

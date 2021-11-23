@@ -5,15 +5,36 @@ from qiskit import QuantumCircuit
 from qiskit import QuantumCircuit, Aer, execute
 
 import cirq
+from cirq import ops
 from cirq import Simulator
 from cirq.contrib.qasm_import import circuit_from_qasm
 from cirq.ops.measurement_gate import MeasurementGate
+
+import re
 
 
 # CIRQ: supporting function
 def get_all_measurement_keys(circuit):
     all_ops = list(circuit.findall_operations_with_gate_type(MeasurementGate))
     return sorted([e[2].key for e in all_ops])
+
+
+def extract_registers_and_body(qasm_string):
+        """Extracts register definitions and body from the QASM string.
+        """
+        lines = qasm_string.split("\n")
+        register_lines = []
+        body = []
+        for line in lines:
+            if line.startswith("creg"):
+                register_lines.append(line)
+            elif line.startswith("qreg"):
+                register_lines.append(line)
+            elif line.startswith("OPENQASM") or line.startswith("include"):
+                pass
+            else:
+                body.append(line)
+        return register_lines, body
 
 
 class Circuit(ABC):
@@ -67,30 +88,30 @@ class CirqCircuit(Circuit):
         self.simulator = Simulator()
 
     def from_qasm(self, qasm_string):
-        # remember to add the QASM header
+        # check if barriers are present
+        if any([
+                line.startswith("barrier")
+                for line in qasm_string.split("\n")]):
 
-        chunks = qasm_string.split("barrier q;")
-        preface = "\n".join(qasm_string.split("\n")[:5])
-        # preface contains standatd lib and registers
-        # print(preface)
+            preface = "OPENQASM 2.0;" + "\n" + 'include "qelib1.inc";' + "\n"
 
-        # extract the input preparation part (before the 1st barrier)
-        # create it with circuit_from_qasm(chunk_input)
-        chunk_input = chunks[0]
+            register_lines, body = \
+                extract_registers_and_body(qasm_string)
+            preface = preface + "\n".join(register_lines) + "\n"
+            qasm_string = "\n".join(body)
 
-        # extract the central part (between barriers)
-        # create it with circuit_from_qasm(chunk_core)
-        chunk_core = preface + chunks[1]
+            # split in different barriers (operation not supported by cirq)
+            chunks = re.split("barrier.*;", qasm_string)
+            first_chunk = chunks[0]
+            self.circuit = circuit_from_qasm(preface + first_chunk)
+            other_chunks = chunks[1:]
+            for chunk in other_chunks:
+                self.circuit += circuit_from_qasm(preface + chunk)
+        else:
+            self.circuit = circuit_from_qasm(qasm_string)
 
-        # extract the last part (after 2nd barrier)
-        # create it with circuit_from_qasm(chunk_measurement)
-        chunk_measurement = preface + chunks[2]
-
-        # glue the three chunks making sure they are executed in different
-        # moments
-        # hint: use append
-
-        self.circuit = circuit_from_qasm(chunk_input) + circuit_from_qasm(chunk_core) + circuit_from_qasm(chunk_measurement)  # noqa
+        # rename all the measurements
+        self.circuit = self._give_unique_ids_to_measurement()
 
     def execute(self, classical_input=None):
         samples = self.simulator.run(
@@ -104,3 +125,22 @@ class CirqCircuit(Circuit):
 
     def draw(self):
         print(self.circuit.to_text_diagram())
+
+    def _give_unique_ids_to_measurement(self):
+        """Give unique ids to the measurements in the circuit."""
+        new_circuit = []
+        unique_id = 0
+        for m in self.circuit:
+            #print(m)
+            new_moment_ops = []
+            for op in m.operations:
+                if isinstance(op.gate, ops.MeasurementGate):
+                    new_measurement = cirq.measure(
+                        op.qubits[0], key=f"m_{unique_id}")
+                    unique_id += 1
+                    new_moment_ops.append(new_measurement)
+                else:
+                    new_moment_ops.append(op)
+            #print(new_moment_ops)
+            new_circuit.append(cirq.Moment(new_moment_ops))
+        return cirq.Circuit(new_circuit)
