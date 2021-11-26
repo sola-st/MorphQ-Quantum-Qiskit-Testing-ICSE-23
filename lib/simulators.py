@@ -49,7 +49,7 @@ class Circuit(ABC):
         pass
 
     @abstractmethod
-    def execute(self, classical_input=None):
+    def execute(self, custom_shots=None):
         pass
 
     @abstractmethod
@@ -71,8 +71,10 @@ class QiskitCircuit(Circuit):
     def from_qasm(self, qasm_string):
         self.circuit = QuantumCircuit.from_qasm_str(qasm_string)
 
-    def execute(self, classical_input=None):
-        job = execute(self.circuit, self.simulator)
+    def execute(self, custom_shots=None):
+        if custom_shots is None:
+            shots = self.repetitions
+        job = execute(self.circuit, self.simulator, shots=shots)
         job_result = job.result()
         self.result = dict(job_result.get_counts())
 
@@ -113,9 +115,11 @@ class CirqCircuit(Circuit):
         # rename all the measurements
         self.circuit = self._give_unique_ids_to_measurement()
 
-    def execute(self, classical_input=None):
+    def execute(self, custom_shots=None):
+        if custom_shots is None:
+            shots = self.repetitions
         samples = self.simulator.run(
-            self.circuit, repetitions=self.repetitions)
+            self.circuit, repetitions=shots)
         all_keys = get_all_measurement_keys(self.circuit)
         counter = samples.multi_measurement_histogram(keys=all_keys)
         self.result = {

@@ -17,15 +17,15 @@ strategy_program_generation: weighted #- uniform
 # EXECUTION
 platforms_objects: [QiskitCircuit, CirqCircuit]
 strategy_sample_size_estimation: null # "qdiff[cited paper]" | null
-fixed_sample_size: 1000
+fixed_sample_size: 8192
 n_repetitions: 10
 strategy_input_generation: null
 fixed_input: 0
 # COMPARISON
 strategy_execution_comparison:
-  - "ks"
-  #- "crossentropy"
+  - ks
+  #- crossentropy
 # FOLDERS
 folder_generated_qasm: ../data/MVP/generated_programs
-folder_execution_results: ../data/MVP/generated_programs
-folder_comparison_results: ../data/MVP/generated_programs
+folder_execution_results: ../data/MVP/execution_results
+folder_comparison_results: ../data/MVP/detector_results
