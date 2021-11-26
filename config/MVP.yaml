@@ -1,0 +1,31 @@
+# GENERAL PROPERTIES
+min_n_qubits: 2
+max_n_qubits: 20
+min_n_ops: 30
+max_n_ops: 100
+program_id_pattern: "{{timestamp}}_{{randint}}"
+random_seed: 42
+# PROGRAM GENERATION
+gate_set:
+  cx: 3
+  rx: 1
+  ry: 1
+  rz: 1
+  p: 1
+n_generated_programs: 10
+strategy_program_generation: weighted #- uniform
+# EXECUTION
+platforms_objects: [QiskitCircuit, CirqCircuit]
+strategy_sample_size_estimation: null # "qdiff[cited paper]" | null
+fixed_sample_size: 1000
+n_repetitions: 10
+strategy_input_generation: null
+fixed_input: 0
+# COMPARISON
+strategy_execution_comparison:
+  - "ks"
+  #- "crossentropy"
+# FOLDERS
+folder_generated_qasm: ../data/MVP/generated_programs
+folder_execution_results: ../data/MVP/generated_programs
+folder_comparison_results: ../data/MVP/generated_programs
