@@ -1,16 +1,24 @@
 # load json
 library(jsonlite)
-
+library(yaml)
 # import dataframe library
 #library(data.table)
 library(dplyr)
-
-
 library(energy)
+
+# get command line argument
+args <- commandArgs(trailingOnly = TRUE)
+
+# read yaml file
+yaml <- read_yaml(file=args[1])
+
+
+input_root_folder <- yaml$folder_execution_results
+output_root_folder <- yaml$folder_comparison_results
 
 read_file <- function(result_file) {
     # read json file into a dictionary
-    print(result_file)
+    print(paste("Loading: ", result_file))
     json_dict <- fromJSON(txt=result_file)
     print("Loading successful.")
 
@@ -40,21 +48,7 @@ read_file <- function(result_file) {
 }
 
 
-
-# print columns names of dataset
-#print(colnames(dataset_A))
-
-#is.data.frame(dataset_A)
-#is.data.frame(dataset_B)
-
-# convert dataset to matrix
-
-# iterates over the files in a specific folder
-
-root_folder <- "../data/MVP/execution_results/"
-
-
-filenames <- list.files(root_folder)
+filenames <- list.files(input_root_folder)
 
 root_filenames <- sub('[a-zA-Z]+.json','', filenames)
 root_filenames <- sub('pvalue.txt','', root_filenames)
@@ -63,15 +57,14 @@ root_filenames <- sub('pvalue.txt','', root_filenames)
 unique_filenames <- unique(root_filenames)
 
 print(unique_filenames)
-
 platforms <- c("CirqCircuit.json", "QiskitCircuit.json")
 
 for (file in unique_filenames) {
     platform_A <- paste(file, platforms[1], sep="")
     platform_B <- paste(file, platforms[2], sep="")
 
-    dataset_A <- read_file(paste(root_folder, platform_A, sep=""))
-    dataset_B <- read_file(paste(root_folder, platform_B, sep=""))
+    dataset_A <- read_file(paste(input_root_folder, platform_A, sep="/"))
+    dataset_B <- read_file(paste(input_root_folder, platform_B, sep="/"))
     n = nrow(dataset_A)
     m = nrow(dataset_B)
 
@@ -82,18 +75,30 @@ for (file in unique_filenames) {
     # should match edist default statistic
     set.seed(1234)
     print("Test Computation")
-    statstic <- eqdist.etest(d, sizes=c(n, m), distance=TRUE, R = 15)
-    sink(paste(root_folder, file, "pvalue.txt", sep=""))
-    print(statstic)
-    sink()
-    print(statstic)
+    statistic <- eqdist.etest(d, sizes=c(n, m), distance=TRUE, R = 499)
+    #sink(paste(output_root_folder, paste(file, "pvalue.txt", sep=""), sep="/"))
+    #print(statistic)
+    #sink()
+    print(statistic)
+
+    # save json file
+    s <- as.double(statistic$statistic)
+    p <- as.double(statistic$p.value)
+    typeof(statistic$statistic)
+    typeof(statistic$p.value)
+    serialized_statistic <- list(statistic = s, p_value = p)
+    print(serialized_statistic)
+    exportJSON <- toJSON(serialized_statistic, auto_unbox = TRUE)
+    print(exportJSON)
+    write(exportJSON, paste(output_root_folder, paste(file, "energy", ".json", sep=""), sep="/"))
+
 }
 
-head(dataset_A)
-head(dataset_B)
+#head(dataset_A)
+#head(dataset_B)
 
-X <- rbind(dataset_A, dataset_B)
-dataset_X <- data.frame(X)
+#X <- rbind(dataset_A, dataset_B)
+#dataset_X <- data.frame(X)
 
-head(dataset_X)
-print(nrow(dataset_X))
+#head(dataset_X)
+#print(nrow(dataset_X))

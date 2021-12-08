@@ -60,7 +60,7 @@ def main(config_file):
     # check that the config file has the right keys
     keys = config.keys()
     required_keys = [
-        "strategy_execution_comparison",
+        "strategy_execution_comparison_in_python",
         "platforms_objects",
         "folder_execution_results",
         "folder_comparison_results"
@@ -70,7 +70,7 @@ def main(config_file):
 
     detectors = []
 
-    if "ks" in config["strategy_execution_comparison"]:
+    if "ks" in config["strategy_execution_comparison_in_python"]:
         detectors.append(KS_Detector())
 
     # get pairs of dictionary

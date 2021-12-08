@@ -1,3 +1,27 @@
+# ------------------------------------------------------------------------------
+# GUIDE - STEP BY STEP:
+
+# Set the properties below, then follow these steps.
+
+# ------------------------------------------------------------------------------
+# STEP 1: random QASM generator
+# python3 program_generation.py ../config/MVP.yaml
+
+# ------------------------------------------------------------------------------
+# STEP 2: program execution
+# python3 program_execution.py ../config/MVP.yaml
+
+# ------------------------------------------------------------------------------
+# STEP 3: program comparison:
+
+# DETECTORS in R:
+# Rscript preprocess_results.r ../config/MVP.yaml
+
+# DETECTORS in Python:
+# python3 program_comparison.py ../config/MVP.yaml
+# ------------------------------------------------------------------------------
+
+
 # GENERAL PROPERTIES
 min_n_qubits: 2
 max_n_qubits: 20
@@ -22,10 +46,13 @@ n_repetitions: 10
 strategy_input_generation: null
 fixed_input: 0
 # COMPARISON
-strategy_execution_comparison:
+strategy_execution_comparison_in_python:
   - ks
-  #- crossentropy
+strategy_execution_comparison_in_r:
+  - energy
 # FOLDERS
 folder_generated_qasm: ../data/MVP/generated_programs
 folder_execution_results: ../data/MVP/execution_results
 folder_comparison_results: ../data/MVP/detector_results
+
+
