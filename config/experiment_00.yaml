@@ -1,0 +1,58 @@
+# ------------------------------------------------------------------------------
+# GUIDE - STEP BY STEP:
+
+# Set the properties below, then follow these steps.
+
+# ------------------------------------------------------------------------------
+# STEP 1: random QASM generator
+# python3 program_generation.py ../config/experiment_00.yaml
+
+# ------------------------------------------------------------------------------
+# STEP 2: program execution
+# python3 program_execution.py ../config/experiment_00.yaml
+
+# ------------------------------------------------------------------------------
+# STEP 3: program comparison:
+
+# DETECTORS in R:
+# Rscript preprocess_results.r ../config/experiment_00.yaml
+
+# DETECTORS in Python:
+# python3 program_comparison.py ../config/experiment_00.yaml
+# ------------------------------------------------------------------------------
+
+
+# GENERAL PROPERTIES
+min_n_qubits: 2
+max_n_qubits: 20
+min_n_ops: 30
+max_n_ops: 200
+program_id_pattern: "{{timestamp}}_{{randint}}"
+random_seed: 42
+# PROGRAM GENERATION
+gate_set:
+  cx: 3
+  rx: 1
+  ry: 1
+  rz: 1
+  p: 1
+n_generated_programs: 1000
+strategy_program_generation: weighted #- uniform
+# EXECUTION
+platforms_objects: [QiskitCircuit, CirqCircuit]
+strategy_sample_size_estimation: null # "qdiff[cited paper]" | null
+fixed_sample_size: 8192
+n_repetitions: 10
+strategy_input_generation: null
+fixed_input: 0
+# COMPARISON
+strategy_execution_comparison_in_python:
+  - ks
+strategy_execution_comparison_in_r:
+  - energy
+# FOLDERS
+folder_generated_qasm: ../data/experiment_v00/generated_programs
+folder_execution_results: ../data/experiment_v00/execution_results
+folder_comparison_results: ../data/experiment_v00/detector_results
+
+
