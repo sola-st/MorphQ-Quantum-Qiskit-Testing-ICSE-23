@@ -72,7 +72,8 @@ class QiskitCircuit(Circuit):
         self.circuit = QuantumCircuit.from_qasm_str(qasm_string)
 
     def execute(self, custom_shots=None):
-        if custom_shots is None:
+        shots = custom_shots
+        if shots is None:
             shots = self.repetitions
         job = execute(self.circuit, self.simulator, shots=shots)
         job_result = job.result()
@@ -116,7 +117,8 @@ class CirqCircuit(Circuit):
         self.circuit = self._give_unique_ids_to_measurement()
 
     def execute(self, custom_shots=None):
-        if custom_shots is None:
+        shots = custom_shots
+        if shots is None:
             shots = self.repetitions
         samples = self.simulator.run(
             self.circuit, repetitions=shots)

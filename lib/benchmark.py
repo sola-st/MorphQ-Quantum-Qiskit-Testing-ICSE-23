@@ -63,53 +63,18 @@ def get_execution_files(path, platform_A, platform_B):
     ]
 
 
-@click.command()
-@click.argument('config_file')
-def main(config_file):
-    """Generate programs according to the CONFIG_FILE."""
-    # check that there is a file at the config file location
-    assert os.path.isfile(config_file), "Config file does not exist."
-    # load the config file with yaml
-    with open(config_file, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    # check that the config file has the right keys
-    keys = config.keys()
-    required_keys = [
-        "strategy_execution_comparison_in_python",
-        "platforms_objects",
-        "folder_execution_results",
-        "folder_comparison_results"
-        ]
-    for req_key in required_keys:
-        assert req_key in keys, f"Config file missing key: {req_key}"
-
-    detectors = []
-
-    if "ks" in config["strategy_execution_comparison_in_python"]:
-        detectors.append(KS_Detector())
-
-    # get pairs of dictionary
-    platforms = config["platforms_objects"]
-    assert len(platforms) == 2, "There should be two platforms."
-    platform_A, platform_B = platforms
-    # get the execution files
-    pairs_of_results = get_execution_files(
-        config["folder_execution_results"],
-        platform_A, platform_B)
-
-    for (result_A, result_B, identifier) in pairs_of_results:
-        # get the results
-        for detector in detectors:
-            statistic, p_value = detector.check(result_A, result_B)
-            comparison = {
-                "statistic": statistic,
-                "p_value": p_value,
-            }
-            with open(os.path.join(
-                        config["folder_comparison_results"],
-                        identifier + ".json"
-                    ), "w") as f:
-                json.dump(comparison, f)
+def iterate_over(folder, filetype):
+    """
+    Iterate over the files in the given folder.
+    """
+    for file in os.listdir(folder):
+        if file.endswith(filetype):
+            # open the file and yield it
+            with open(os.path.join(folder, file), 'r') as f:
+                file_content = f.read()
+                f.close()
+            filename_without_extension = file.replace(filetype, "")
+            yield filename_without_extension, file_content
 
 
 def check_folder_structure(config):
@@ -164,38 +129,37 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
                 random_seed=config["random_seed"],
                 circuit_id=str(i))
 
+
 def joined_execution(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
     """Jointly execute the programs A and B in a sequential way."""
     click.echo("Joint execution...")
-    # get all qasm files in the respective folders
 
-
+    n_shots = config["fixed_sample_size"]
     # load the generator objects for the two samples
-    generators = [
-        eval(benchmark_config[sample_name]["execution_object"])(
-            out_folder=get_benchmark_folder(
-                    config, benchmark_name, "executions", sample_name))
+    executors = [
+        (
+            get_benchmark_folder(
+                config, benchmark_name, "programs", sample_name),
+            eval(benchmark_config[sample_name]["execution_object"])(
+                repetitions=n_shots),
+            get_benchmark_folder(
+                config, benchmark_name, "executions", sample_name),
+        )
         for sample_name in ['sample_a', 'sample_b']
     ]
 
-    for i in range(n_generated_programs):
-        # sample a number of qubits
-        n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
-        # create the program and store them automatically
-        for generator in generators:
-            generator.generate(
-                n_qubits=n_qubits,
-                n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
-                gate_set=config["gate_set"],
-                random_seed=config["random_seed"],
-                circuit_id=str(i))
+    # use the executors sequentially
+    for program_folder, executor, out_folder in executors:
 
-
-
-
-def single_generation(benchmark_config: Dict[str, Any], config: Dict[str, Any]):
-    """"Generate the samples A or B separately."""
-    click.echo("Single generation...")
+        for circuit_id, qasm_content in iterate_over(program_folder, ".qasm"):
+            # load the program
+            executor.from_qasm(qasm_content)
+            # execute the program
+            executor.execute(n_shots)
+            result = executor.get_result()
+            with open(os.path.join(out_folder, f"{circuit_id}.json"), "w") as execution_file:
+                print(f"Saving execution of: {circuit_id}.json")
+                json.dump(result, execution_file)
 
 
 def create_benchmark(config: Dict[str, Any]):
@@ -223,11 +187,8 @@ def create_benchmark(config: Dict[str, Any]):
         # sample generation
         joined_generation(b_name, benchmark, config)
 
-        # sample execution
-        #joined_execution(name, benchmark, config_file)
-
         # run the two executors (in sequence because easier to debug)
-
+        joined_execution(b_name, benchmark, config)
 
 
 def run_benchmark(config_file: Dict[str, Any]):
@@ -268,6 +229,52 @@ def create(config_file):
 def run(config_file):
     click.echo('Run benchmark')
     #run_benchmark(config)
+
+    def main(config_file):
+        """Generate programs according to the CONFIG_FILE."""
+        # check that there is a file at the config file location
+        assert os.path.isfile(config_file), "Config file does not exist."
+        # load the config file with yaml
+        with open(config_file, "r") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        # check that the config file has the right keys
+        keys = config.keys()
+        required_keys = [
+            "strategy_execution_comparison_in_python",
+            "platforms_objects",
+            "folder_execution_results",
+            "folder_comparison_results"
+            ]
+        for req_key in required_keys:
+            assert req_key in keys, f"Config file missing key: {req_key}"
+
+        detectors = []
+
+        if "ks" in config["strategy_execution_comparison_in_python"]:
+            detectors.append(KS_Detector())
+
+        # get pairs of dictionary
+        platforms = config["platforms_objects"]
+        assert len(platforms) == 2, "There should be two platforms."
+        platform_A, platform_B = platforms
+        # get the execution files
+        pairs_of_results = get_execution_files(
+            config["folder_execution_results"],
+            platform_A, platform_B)
+
+        for (result_A, result_B, identifier) in pairs_of_results:
+            # get the results
+            for detector in detectors:
+                statistic, p_value = detector.check(result_A, result_B)
+                comparison = {
+                    "statistic": statistic,
+                    "p_value": p_value,
+                }
+                with open(os.path.join(
+                            config["folder_comparison_results"],
+                            identifier + ".json"
+                        ), "w") as f:
+                    json.dump(comparison, f)
 
 
 if __name__ == '__main__':

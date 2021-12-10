@@ -14,7 +14,7 @@ gate_set:
   ry: 1
   rz: 1
   p: 1
-n_generated_programs: 100
+n_generated_programs: 3
 
 # EXECUTION
 strategy_sample_size_estimation: null # "qdiff[cited paper]" | null
