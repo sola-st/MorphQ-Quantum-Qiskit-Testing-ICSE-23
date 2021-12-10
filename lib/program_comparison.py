@@ -27,7 +27,7 @@ def get_execution_files(path, platform_A, platform_B):
     """
     Return a list of the execution files in the given path.
     """
-    list_files = os.listdir(path) # Get all the files in the path
+    list_files = os.listdir(path)  # Get all the files in the path
     platform_A_files = set([
         f.replace(f'{platform_A}.json', "") for f in list_files
         if f.endswith(f'{platform_A}.json')
@@ -47,6 +47,7 @@ def get_execution_files(path, platform_A, platform_B):
         )
         for e in intersection
     ]
+
 
 @click.command()
 @click.argument('config_file')

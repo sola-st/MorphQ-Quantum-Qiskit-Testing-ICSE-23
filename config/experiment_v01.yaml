@@ -1,0 +1,98 @@
+# GLOBAL
+
+min_n_qubits: 2
+max_n_qubits: 20
+min_n_ops: 30
+max_n_ops: 200
+random_seed: 42
+
+# PROGRAM GENERATION
+program_id_pattern: "{{timestamp}}_{{qasm_hash}}_{{randint}}"
+gate_set:
+  cx: 3
+  rx: 1
+  ry: 1
+  rz: 1
+  p: 1
+n_generated_programs: 100
+
+# EXECUTION
+strategy_sample_size_estimation: null # "qdiff[cited paper]" | null
+fixed_sample_size: 8192
+n_repetitions: 10
+strategy_input_generation: null
+fixed_input: 0
+
+# FOLDERS
+folder_generated_qasm: ../data/experiment_v01/generated_programs
+folder_execution_results: ../data/experiment_v01/execution_results
+folder_comparison_results: ../data/experiment_v01/detector_results
+folder_benchmark: ../data/experiment_v01/
+
+benchmarks_configurations:
+  - name: program_vs_random
+    description: |
+      Sample A: random program, executed on Cirq.
+      Sample B: uniformly random bitsting output.
+    title: Real (Random) Program vs Uniform Random Bitstring
+    expected_divergence: true
+    samples_relationship: independent
+    sample_a:
+      generation_object: WeightedRandomCircuitGenerator
+      execution_object: CirqCircuit
+    sample_b:
+      generation_object: FakeCircuitGenerator
+      execution_object: UniformBitstringDistribution
+  - name: across_runs
+    description: |
+      Sample A: random program x, executed on Cirq.
+      Sample B: random program x, executed on Cirq (second time).
+    title: Real (Random) Program across two runs
+    expected_divergence: false
+    # if the generation strategy is not at a sample level it means that the two samples are executing the same QASM circuit.
+    samples_relationship: identical
+    generation_object: WeightedRandomCircuitGenerator
+    sample_a:
+      execution_object: CirqCircuit
+    sample_b:
+      execution_object: CirqCircuit
+  - name: negation
+    description: |
+      Sample A: random program x, executed on Cirq.
+      Sample B: random program x + NOT chain, executed on Cirq.
+    title: Real (Random) Program vs Real (Random) Program + NOT Chain
+    expected_divergence: true
+    samples_relationship: b_derived_from_a
+    sample_a:
+      generation_object: WeightedRandomCircuitGenerator
+      execution_object: CirqCircuit
+    sample_b:
+      generation_object: FinalNotCircuitModifier
+      execution_object: CirqCircuit
+  - name: famous_algos
+    description: |
+      Sample A: real program x, executed on Cirq.
+      Sample B: real program x, executed on Qiskit.
+    title: Famous Algo on Cirq vs Same Algo on Qiskit
+    expected_divergence: false
+    samples_relationship: identical
+    generation_object: FamousCircuitGenerator
+    sample_a:
+      simulator_object: CirqCircuit
+    sample_b:
+      simulator_object: QikitCircuit
+  - name: program_x_vs_program_y
+    description: |
+      Sample A: random program x, executed on Cirq.
+      Sample B: random program y, executed on Cirq.
+    title: (Random) Program x vs (Random) Program y [on Cirq]
+    expected_divergence: true
+    samples_relationship: independent
+    sample_a:
+      generation_object: WeightedRandomCircuitGenerator
+      simulator_object: CirqCircuit
+    sample_b:
+      generation_object: WeightedRandomCircuitGenerator
+      simulator_object: CirqCircuit
+
+
