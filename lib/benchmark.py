@@ -26,7 +26,7 @@ from generation_strategy import *
 from simulators import *
 from simulators_mockup import *
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 def load_json(filename, folder):
@@ -63,7 +63,7 @@ def get_execution_files(path, platform_A, platform_B):
     ]
 
 
-def iterate_over(folder, filetype):
+def iterate_over(folder, filetype, parse_json=False):
     """
     Iterate over the files in the given folder.
     """
@@ -71,10 +71,38 @@ def iterate_over(folder, filetype):
         if file.endswith(filetype):
             # open the file and yield it
             with open(os.path.join(folder, file), 'r') as f:
-                file_content = f.read()
+                if parse_json and filetype == '.json':
+                    # read json file
+                    file_content = json.load(f)
+                else:
+                    # read any other file
+                    file_content = f.read()
                 f.close()
             filename_without_extension = file.replace(filetype, "")
             yield filename_without_extension, file_content
+
+
+def iterate_parallel(folder_master, folder_slave, filetype, parse_json=False):
+    """
+    Iterate over the files in the given folder.
+    """
+    for file in os.listdir(folder_master):
+        if file.endswith(filetype):
+            filename_without_extension = file.replace(filetype, "")
+            result_tuple = []
+            result_tuple.append(filename_without_extension)
+            for folder in [folder_master, folder_slave]:
+                # open the file and yield it
+                with open(os.path.join(folder, file), 'r') as f:
+                    if parse_json and filetype == '.json':
+                        # read json file
+                        file_content = json.load(f)
+                    else:
+                        # read any other file
+                        file_content = f.read()
+                    f.close()
+                    result_tuple.append(file_content)
+            yield result_tuple
 
 
 def check_folder_structure(config):
@@ -201,24 +229,24 @@ def cli():
     pass
 
 
+def load_config_and_check(config_file: str, required_keys: List[str]):
+    """Load the config file and check that it has the right keys."""
+    with open(config_file, "r") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    for key in required_keys:
+        assert key in config.keys(), f"Missing key: {key}"
+    return config
+
+
 @cli.command()
 @click.argument('config_file')
 def create(config_file):
-    # check that there is a file at the config file location
-    assert os.path.isfile(config_file), "Config file does not exist."
-    # load the config file with yaml
-    with open(config_file, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    # check that the config file has the right keys
-    keys = config.keys()
-    required_keys = [
+    config = load_config_and_check(config_file, [
         "min_n_qubits",
         "max_n_qubits",
         "n_generated_programs",
         "fixed_sample_size"
-        ]
-    for req_key in required_keys:
-        assert req_key in keys, f"Config file missing key: {req_key}"
+        ])
 
     click.echo('Create benchmark')
     create_benchmark(config)
@@ -227,55 +255,43 @@ def create(config_file):
 @cli.command()
 @click.argument('config_file')
 def run(config_file):
-    click.echo('Run benchmark')
-    #run_benchmark(config)
+    config = load_config_and_check(config_file, [
+        "detectors"
+        ])
 
-    def main(config_file):
-        """Generate programs according to the CONFIG_FILE."""
-        # check that there is a file at the config file location
-        assert os.path.isfile(config_file), "Config file does not exist."
-        # load the config file with yaml
-        with open(config_file, "r") as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-        # check that the config file has the right keys
-        keys = config.keys()
-        required_keys = [
-            "strategy_execution_comparison_in_python",
-            "platforms_objects",
-            "folder_execution_results",
-            "folder_comparison_results"
-            ]
-        for req_key in required_keys:
-            assert req_key in keys, f"Config file missing key: {req_key}"
+    detectors = []
+    if "ks" in config["detectors"]:
+        detectors.append(KS_Detector())
 
-        detectors = []
+    benchmarks = config["benchmarks_configurations"]
 
-        if "ks" in config["strategy_execution_comparison_in_python"]:
-            detectors.append(KS_Detector())
+    check_folder_structure(config)
 
-        # get pairs of dictionary
-        platforms = config["platforms_objects"]
-        assert len(platforms) == 2, "There should be two platforms."
-        platform_A, platform_B = platforms
-        # get the execution files
-        pairs_of_results = get_execution_files(
-            config["folder_execution_results"],
-            platform_A, platform_B)
+    for benchmark in benchmarks[:1]:
+        b_name = benchmark['name']
 
-        for (result_A, result_B, identifier) in pairs_of_results:
-            # get the results
+        click.echo(f"Benchmark: {b_name}")
+
+        prediction_folder = get_benchmark_folder(
+            config, b_name, "predictions", "sample_a"),
+
+        exec_folder_A = get_benchmark_folder(
+                config, b_name, "executions", 'sample_a'),
+        exec_folder_B = get_benchmark_folder(
+                config, b_name, "executions", 'sample_b'),
+        print(f"Prediction folder: {prediction_folder}")
+        print(f"Execution folder A: {exec_folder_A}")
+        print(f"Execution folder B: {exec_folder_B}")
+        for name, res_a, res_b in iterate_parallel(exec_folder_A[0], exec_folder_B[0], filetype=".json", parse_json=True):
             for detector in detectors:
-                statistic, p_value = detector.check(result_A, result_B)
+                statistic, p_value = detector.check(res_a, res_b)
                 comparison = {
                     "statistic": statistic,
                     "p_value": p_value,
                 }
-                with open(os.path.join(
-                            config["folder_comparison_results"],
-                            identifier + ".json"
-                        ), "w") as f:
-                    json.dump(comparison, f)
-
+                with open(os.path.join(prediction_folder[0], name + ".json"), "w") as file:
+                    json.dump(comparison, file)
+                    file.close()
 
 if __name__ == '__main__':
     cli()

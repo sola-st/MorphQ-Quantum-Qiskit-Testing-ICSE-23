@@ -23,10 +23,12 @@ n_repetitions: 10
 strategy_input_generation: null
 fixed_input: 0
 
+# DETECTORS
+detectors:
+  - ks
+
+
 # FOLDERS
-folder_generated_qasm: ../data/experiment_v01/generated_programs
-folder_execution_results: ../data/experiment_v01/execution_results
-folder_comparison_results: ../data/experiment_v01/detector_results
 folder_benchmark: ../data/experiment_v01/
 
 benchmarks_configurations:
