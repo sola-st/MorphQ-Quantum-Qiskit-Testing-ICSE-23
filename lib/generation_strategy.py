@@ -190,7 +190,7 @@ class FakeCircuitGenerator(GenerationStrategy):
 
     def _generate_single_program(self, circuit_id: str):
         """Generate QASM program and its metadata."""
-        dumb_string = f"{circuit_id}  # number of qubits of the fake circuit"
+        dumb_string = f"{self.n_qubits}  # number of qubits of the fake circuit"
         metadata_dict = {
             "n_qubits": self.n_qubits,
             "strategy_program_generation": self.__class__.__name__
