@@ -196,3 +196,34 @@ class FakeCircuitGenerator(GenerationStrategy):
             "strategy_program_generation": self.__class__.__name__
         }
         return dumb_string, metadata_dict
+
+
+class FamousCircuitGenerator(GenerationStrategy):
+    """Generate a famous circuit."""
+
+    def __init__(self, out_folder: str):
+        super().__init__(out_folder)
+        famous_algos_folder = "../data/QASMBench/famous_algos"
+        # read all the file in the folder
+        files = sorted(os.listdir(famous_algos_folder))
+        file_contents_and_n_bits = []
+        for file in files:
+            with open(f"{famous_algos_folder}/{file}", "r") as f:
+                content = f.read()
+                f.close()
+            n_bits = int(file.split("_")[1].replace("n", "").replace(".qasm", ""))
+            file_contents_and_n_bits.append((content, n_bits))
+        self.famous_algos = file_contents_and_n_bits
+        self.available_algos = len(self.famous_algos)
+
+    def _generate_single_program(self, circuit_id: str):
+        """Generate QASM program and its metadata."""
+        if self.available_algos > 0:
+            self.available_algos -= 1
+            algo, bits = self.famous_algos.pop()
+            metadata_dict = {
+                "n_qubits": bits,
+                "strategy_program_generation": self.__class__.__name__
+            }
+            return algo, metadata_dict
+        return "", {}

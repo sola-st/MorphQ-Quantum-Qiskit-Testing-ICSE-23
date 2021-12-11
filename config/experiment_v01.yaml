@@ -45,6 +45,18 @@ benchmarks_configurations:
     sample_b:
       generation_object: FakeCircuitGenerator
       execution_object: UniformBitstringDistribution
+  - name: famous_algos
+    description: |
+      Sample A: real program x, executed on Cirq.
+      Sample B: real program x, executed on Qiskit.
+    title: Famous Algo on Cirq vs Same Algo on Qiskit
+    expected_divergence: false
+    samples_relationship: identical
+    generation_object: FamousCircuitGenerator
+    sample_a:
+      execution_object: CirqCircuit
+    sample_b:
+      execution_object: QiskitCircuit
   - name: across_runs
     description: |
       Sample A: random program x, executed on Cirq.
@@ -71,18 +83,6 @@ benchmarks_configurations:
     sample_b:
       generation_object: FinalNotCircuitModifier
       execution_object: CirqCircuit
-  - name: famous_algos
-    description: |
-      Sample A: real program x, executed on Cirq.
-      Sample B: real program x, executed on Qiskit.
-    title: Famous Algo on Cirq vs Same Algo on Qiskit
-    expected_divergence: false
-    samples_relationship: identical
-    generation_object: FamousCircuitGenerator
-    sample_a:
-      simulator_object: CirqCircuit
-    sample_b:
-      simulator_object: QikitCircuit
   - name: program_x_vs_program_y
     description: |
       Sample A: random program x, executed on Cirq.
@@ -92,9 +92,9 @@ benchmarks_configurations:
     samples_relationship: independent
     sample_a:
       generation_object: WeightedRandomCircuitGenerator
-      simulator_object: CirqCircuit
+      execution_object: CirqCircuit
     sample_b:
       generation_object: WeightedRandomCircuitGenerator
-      simulator_object: CirqCircuit
+      execution_object: CirqCircuit
 
 

@@ -20,6 +20,7 @@ import random
 import os
 import time
 from pathlib import Path
+import shutil
 
 from detectors import *
 from generation_strategy import *
@@ -35,32 +36,6 @@ def load_json(filename, folder):
     """
     with open(os.path.join(folder, filename), 'r') as f:
         return json.load(f)
-
-
-def get_execution_files(path, platform_A, platform_B):
-    """
-    Return a list of the execution files in the given path.
-    """
-    list_files = os.listdir(path)  # Get all the files in the path
-    platform_A_files = set([
-        f.replace(f'{platform_A}.json', "") for f in list_files
-        if f.endswith(f'{platform_A}.json')
-    ])
-    platform_B_files = set([
-        f.replace(f'{platform_B}.json', "") for f in list_files
-        if f.endswith(f'{platform_B}.json')
-    ])
-    print(platform_A_files)
-    print(platform_B_files)
-    intersection = list(platform_A_files.intersection(platform_B_files))
-    return [
-        (
-            load_json(e + f'{platform_A}.json', folder=path),
-            load_json(e + f'{platform_B}.json', folder=path),
-            e[:-1]  # last character is the '_'
-        )
-        for e in intersection
-    ]
 
 
 def iterate_over(folder, filetype, parse_json=False):
@@ -118,18 +93,21 @@ def check_folder_structure(config):
         for stage_folder in ["programs", "executions", "ground_truth", "predictions"]:
             Path(os.path.join(subfolder, stage_folder)).mkdir(
                 parents=True, exist_ok=True)
-            for sample_name in ["sample_a", "sample_b"]:
-                Path(os.path.join(subfolder, stage_folder, sample_name)).mkdir(
-                    parents=True, exist_ok=True)
+            if stage_folder in ["programs", "executions"]:
+                for sample_name in ["sample_a", "sample_b"]:
+                    Path(os.path.join(subfolder, stage_folder, sample_name)).mkdir(
+                        parents=True, exist_ok=True)
     click.echo("Folder structure checked and ready.")
 
 
-def get_benchmark_folder(config: Dict[str, Any], benchmark_name: str, stage: str, sample: str) -> str:
+def get_benchmark_folder(config: Dict[str, Any], benchmark_name: str, stage: str, sample: str = None) -> str:
     """Get the benchmark folder from the config file."""
     assert stage in ["programs", "executions", "ground_truth", "predictions"]
     assert benchmark_name in [b["name"] for b in config["benchmarks_configurations"]]
-    assert sample in ["sample_a", "sample_b"]
-    return os.path.join(config["folder_benchmark"], benchmark_name, stage, sample)
+    if sample is not None:
+        assert sample in ["sample_a", "sample_b"]
+        return os.path.join(config["folder_benchmark"], benchmark_name, stage, sample)
+    return os.path.join(config["folder_benchmark"], benchmark_name, stage)
 
 
 def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
@@ -145,6 +123,7 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
         for sample_name in ['sample_a', 'sample_b']
     ]
 
+    random.seed(config["random_seed"])
     for i in range(n_generated_programs):
         # sample a number of qubits
         n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
@@ -156,6 +135,39 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
                 gate_set=config["gate_set"],
                 random_seed=config["random_seed"],
                 circuit_id=str(i))
+
+
+def generate_once_and_copy(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
+    """Generate the samples A and copy the same in sample B."""
+    click.echo("Generate Once&Copy generation...")
+    n_generated_programs = config["n_generated_programs"]
+
+    # load the generator objects for the two samples
+    generator = eval(benchmark_config["generation_object"])(
+            out_folder=get_benchmark_folder(
+                    config, benchmark_name, "programs", 'sample_a'))
+
+    random.seed(config["random_seed"])
+    for i in range(n_generated_programs):
+        # sample a number of qubits
+        n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
+        # create the program and store them automatically
+        generator.generate(
+            n_qubits=n_qubits,
+            n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
+            gate_set=config["gate_set"],
+            random_seed=config["random_seed"],
+            circuit_id=str(i))
+
+    # copy the generated programs to the other sample
+    source_folder = get_benchmark_folder(
+        config, benchmark_name, "programs", 'sample_a')
+    folder_other_sample = get_benchmark_folder(
+        config, benchmark_name, "programs", 'sample_b')
+
+    # copy the files
+    for file in os.listdir(source_folder):
+        shutil.copy(os.path.join(source_folder, file), folder_other_sample)
 
 
 def joined_execution(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
@@ -198,7 +210,7 @@ def create_benchmark(config: Dict[str, Any]):
 
     check_folder_structure(config)
 
-    for benchmark in benchmarks[:1]:
+    for benchmark in benchmarks[:2]:
         b_name = benchmark['name']
         click.echo(f"Benchmark: {b_name}")
         # check that the benchmark has the right keys
@@ -213,15 +225,66 @@ def create_benchmark(config: Dict[str, Any]):
         samples_relationship = benchmark["samples_relationship"]
 
         # sample generation
-        joined_generation(b_name, benchmark, config)
+        if samples_relationship == "identical":
+            generate_once_and_copy(b_name, benchmark, config)
+        elif samples_relationship == "independent":
+            joined_generation(b_name, benchmark, config)
 
         # run the two executors (in sequence because easier to debug)
         joined_execution(b_name, benchmark, config)
 
+        # create the ground truth
+        ground_truth_folder = get_benchmark_folder(
+            config, b_name, "ground_truth")
+        record = {"ground_truth": benchmark["expected_divergence"]}
+        for i in range(config["n_generated_programs"]):
+            # save json file with record
+            with open(os.path.join(ground_truth_folder, f"{i}.json"), "w") as f:
+                json.dump(record, f)
 
-def run_benchmark(config_file: Dict[str, Any]):
+
+def run_benchmark(config: Dict[str, Any]):
     """Run the benchmark from the given config file."""
     click.echo("Running benchmark...")
+
+    detectors = []
+    if "ks" in config["detectors"]:
+        detectors.append(KS_Detector())
+
+    benchmarks = config["benchmarks_configurations"]
+
+    check_folder_structure(config)
+
+    for benchmark in benchmarks[:2]:
+        b_name = benchmark['name']
+
+        click.echo(f"Benchmark: {b_name}")
+
+        prediction_folder = get_benchmark_folder(
+            config, b_name, "predictions")
+
+        exec_folder_A = get_benchmark_folder(
+                config, b_name, "executions", 'sample_a')
+        exec_folder_B = get_benchmark_folder(
+                config, b_name, "executions", 'sample_b')
+        print(f"Prediction folder: {prediction_folder}")
+        print(f"Execution folder A: {exec_folder_A}")
+        print(f"Execution folder B: {exec_folder_B}")
+        for name, res_a, res_b in iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True):
+            for detector in detectors:
+                detector_prediction_folder = \
+                    os.path.join(prediction_folder, detector.name)
+                Path(detector_prediction_folder).mkdir(
+                    parents=True, exist_ok=True)
+                statistic, p_value = detector.check(res_a, res_b)
+                comparison = {
+                    "statistic": statistic,
+                    "p_value": p_value,
+                    "test": detector.name,
+                }
+                with open(os.path.join(detector_prediction_folder, name + ".json"), "w") as file:
+                    json.dump(comparison, file)
+                    file.close()
 
 
 @click.group()
@@ -258,40 +321,9 @@ def run(config_file):
     config = load_config_and_check(config_file, [
         "detectors"
         ])
+    click.echo('run benchmark')
+    run_benchmark(config)
 
-    detectors = []
-    if "ks" in config["detectors"]:
-        detectors.append(KS_Detector())
-
-    benchmarks = config["benchmarks_configurations"]
-
-    check_folder_structure(config)
-
-    for benchmark in benchmarks[:1]:
-        b_name = benchmark['name']
-
-        click.echo(f"Benchmark: {b_name}")
-
-        prediction_folder = get_benchmark_folder(
-            config, b_name, "predictions", "sample_a"),
-
-        exec_folder_A = get_benchmark_folder(
-                config, b_name, "executions", 'sample_a'),
-        exec_folder_B = get_benchmark_folder(
-                config, b_name, "executions", 'sample_b'),
-        print(f"Prediction folder: {prediction_folder}")
-        print(f"Execution folder A: {exec_folder_A}")
-        print(f"Execution folder B: {exec_folder_B}")
-        for name, res_a, res_b in iterate_parallel(exec_folder_A[0], exec_folder_B[0], filetype=".json", parse_json=True):
-            for detector in detectors:
-                statistic, p_value = detector.check(res_a, res_b)
-                comparison = {
-                    "statistic": statistic,
-                    "p_value": p_value,
-                }
-                with open(os.path.join(prediction_folder[0], name + ".json"), "w") as file:
-                    json.dump(comparison, file)
-                    file.close()
 
 if __name__ == '__main__':
     cli()
