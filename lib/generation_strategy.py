@@ -13,6 +13,11 @@ from typing import Tuple
 import numpy as np
 import math
 
+from qasm_manipulation import remove_all_measurements
+from qasm_manipulation import detect_registers
+from qasm_manipulation import append_1Q_gate
+from qasm_manipulation import get_first_and_only_quantum_register
+
 
 class GenerationStrategy(ABC):
 
@@ -25,6 +30,7 @@ class GenerationStrategy(ABC):
         self.parse_metadata(n_qubits, n_ops_range, gate_set, random_seed)
         qasm_content, metadata = self._generate_single_program(circuit_id)
         self.store_qasm(circuit_id, qasm_content, self.out_folder, metadata)
+        return qasm_content, metadata
 
     def parse_metadata(self,
                        n_qubits: int, n_ops_range: Tuple[int, int],
@@ -52,6 +58,15 @@ class GenerationStrategy(ABC):
         with open(os.path.join(out_folder, f"{filename}.qasm"), "w") as f:
             f.write(qasm_content)
             f.close()
+
+
+class DerivationStrategy(GenerationStrategy):
+    """Generate a program driving it from another existing program."""
+
+    def load_existing_program(self, qasm_content: str, metadata: Dict[str, Any]) -> str:
+        """Load an existing program."""
+        self.ex_program_content = qasm_content
+        self.ex_metadata = metadata
 
 
 class WeightedRandomCircuitGenerator(GenerationStrategy):
@@ -227,3 +242,25 @@ class FamousCircuitGenerator(GenerationStrategy):
             }
             return algo, metadata_dict
         return "", {}
+
+
+class FinalNotCircuitModifier(DerivationStrategy):
+
+    def _generate_single_program(self, circuit_id: str):
+        # remove the all measurement
+        new_qasm, remove_measurement_section = remove_all_measurements(
+            self.ex_program_content)
+        # detect quantum registers
+        first_qreg = get_first_and_only_quantum_register(new_qasm)
+        n_qubits = first_qreg["n_qubits"]
+        # append the final not gate
+        new_qasm = append_1Q_gate(new_qasm, "x", list(range(n_qubits)))
+        # update the n_ops count + number of not gates
+        if "n_ops" in self.ex_metadata:
+            self.ex_metadata["n_ops"] += n_qubits
+        # append the measurement (removed previously)
+        new_qasm += "\n" + remove_measurement_section
+        return new_qasm, self.ex_metadata
+
+
+

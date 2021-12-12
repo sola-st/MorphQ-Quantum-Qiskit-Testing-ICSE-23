@@ -30,6 +30,9 @@ from simulators_mockup import *
 from typing import Dict, Any, List
 
 
+TEST_CONFIGURATION = 3
+
+
 def load_json(filename, folder):
     """
     Read the json file at the given path.
@@ -170,6 +173,42 @@ def generate_once_and_copy(benchmark_name: str, benchmark_config: Dict[str, Any]
         shutil.copy(os.path.join(source_folder, file), folder_other_sample)
 
 
+def generate_once_and_derive(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
+    """Generate the samples A and derive in sample B with a transformation."""
+    click.echo("Generate Once&Derive generation...")
+    n_generated_programs = config["n_generated_programs"]
+
+    # load the generator objects for the two samples
+    generator_A = eval(benchmark_config["sample_a"]["generation_object"])(
+            out_folder=get_benchmark_folder(
+                    config, benchmark_name, "programs", 'sample_a'))
+
+    generator_B = eval(benchmark_config["sample_b"]["generation_object"])(
+            out_folder=get_benchmark_folder(
+                    config, benchmark_name, "programs", 'sample_b'))
+
+    random.seed(config["random_seed"])
+    for i in range(n_generated_programs):
+        # sample a number of qubits
+        n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
+        # create the program and store them automatically
+        qasm_content, metadata = generator_A.generate(
+            n_qubits=n_qubits,
+            n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
+            gate_set=config["gate_set"],
+            random_seed=config["random_seed"],
+            circuit_id=str(i))
+        # derive the B sample
+        generator_B.load_existing_program(qasm_content, metadata)
+        qasm_content, metadata = generator_B.generate(
+            n_qubits=n_qubits,
+            n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
+            gate_set=config["gate_set"],
+            random_seed=config["random_seed"],
+            circuit_id=str(i))
+
+
+
 def joined_execution(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
     """Jointly execute the programs A and B in a sequential way."""
     click.echo("Joint execution...")
@@ -210,7 +249,7 @@ def create_benchmark(config: Dict[str, Any]):
 
     check_folder_structure(config)
 
-    for benchmark in benchmarks[:2]:
+    for benchmark in benchmarks[TEST_CONFIGURATION:TEST_CONFIGURATION+1]:
         b_name = benchmark['name']
         click.echo(f"Benchmark: {b_name}")
         # check that the benchmark has the right keys
@@ -229,6 +268,8 @@ def create_benchmark(config: Dict[str, Any]):
             generate_once_and_copy(b_name, benchmark, config)
         elif samples_relationship == "independent":
             joined_generation(b_name, benchmark, config)
+        elif samples_relationship == "b_derived_from_a":
+            generate_once_and_derive(b_name, benchmark, config)
 
         # run the two executors (in sequence because easier to debug)
         joined_execution(b_name, benchmark, config)
@@ -236,7 +277,7 @@ def create_benchmark(config: Dict[str, Any]):
         # create the ground truth
         ground_truth_folder = get_benchmark_folder(
             config, b_name, "ground_truth")
-        record = {"ground_truth": benchmark["expected_divergence"]}
+        record = {"expected_divergence": benchmark["expected_divergence"]}
         for i in range(config["n_generated_programs"]):
             # save json file with record
             with open(os.path.join(ground_truth_folder, f"{i}.json"), "w") as f:
@@ -255,7 +296,7 @@ def run_benchmark(config: Dict[str, Any]):
 
     check_folder_structure(config)
 
-    for benchmark in benchmarks[:2]:
+    for benchmark in benchmarks[TEST_CONFIGURATION:TEST_CONFIGURATION+1]:
         b_name = benchmark['name']
 
         click.echo(f"Benchmark: {b_name}")
