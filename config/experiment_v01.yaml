@@ -93,8 +93,10 @@ benchmarks_configurations:
     sample_a:
       generation_object: WeightedRandomCircuitGenerator
       execution_object: CirqCircuit
+      random_seed: 42
     sample_b:
       generation_object: WeightedRandomCircuitGenerator
       execution_object: CirqCircuit
+      random_seed: 24
 
 

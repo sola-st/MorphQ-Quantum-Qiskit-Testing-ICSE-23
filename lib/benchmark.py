@@ -30,7 +30,7 @@ from simulators_mockup import *
 from typing import Dict, Any, List
 
 
-TEST_CONFIGURATION = 3
+TEST_CONFIGURATION = 4
 
 
 def load_json(filename, folder):
@@ -131,12 +131,15 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
         # sample a number of qubits
         n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
         # create the program and store them automatically
-        for generator in generators:
+        for generator, sample_name in zip(generators, ['sample_a', 'sample_b']):
+            seed = config["random_seed"]
+            if "random_seed" in benchmark_config[sample_name].keys():
+                seed = benchmark_config[sample_name]["random_seed"]
             generator.generate(
                 n_qubits=n_qubits,
                 n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
                 gate_set=config["gate_set"],
-                random_seed=config["random_seed"],
+                random_seed=seed,
                 circuit_id=str(i))
 
 
