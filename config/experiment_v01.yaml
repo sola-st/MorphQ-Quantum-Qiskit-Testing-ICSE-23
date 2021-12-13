@@ -25,7 +25,9 @@ fixed_input: 0
 
 # DETECTORS
 detectors:
-  - ks
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
 
 
 # FOLDERS

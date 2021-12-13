@@ -122,7 +122,8 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
     generators = [
         eval(benchmark_config[sample_name]["generation_object"])(
             out_folder=get_benchmark_folder(
-                    config, benchmark_name, "programs", sample_name))
+                    config, benchmark_name, "programs", sample_name),
+            benchmark_name=benchmark_name)
         for sample_name in ['sample_a', 'sample_b']
     ]
 
@@ -151,7 +152,8 @@ def generate_once_and_copy(benchmark_name: str, benchmark_config: Dict[str, Any]
     # load the generator objects for the two samples
     generator = eval(benchmark_config["generation_object"])(
             out_folder=get_benchmark_folder(
-                    config, benchmark_name, "programs", 'sample_a'))
+                    config, benchmark_name, "programs", 'sample_a'),
+            benchmark_name=benchmark_name)
 
     random.seed(config["random_seed"])
     for i in range(n_generated_programs):
@@ -184,11 +186,13 @@ def generate_once_and_derive(benchmark_name: str, benchmark_config: Dict[str, An
     # load the generator objects for the two samples
     generator_A = eval(benchmark_config["sample_a"]["generation_object"])(
             out_folder=get_benchmark_folder(
-                    config, benchmark_name, "programs", 'sample_a'))
+                    config, benchmark_name, "programs", 'sample_a'),
+            benchmark_name=benchmark_name)
 
     generator_B = eval(benchmark_config["sample_b"]["generation_object"])(
             out_folder=get_benchmark_folder(
-                    config, benchmark_name, "programs", 'sample_b'))
+                    config, benchmark_name, "programs", 'sample_b'),
+            benchmark_name=benchmark_name)
 
     random.seed(config["random_seed"])
     for i in range(n_generated_programs):
@@ -252,7 +256,7 @@ def create_benchmark(config: Dict[str, Any]):
 
     check_folder_structure(config)
 
-    for benchmark in benchmarks[TEST_CONFIGURATION:TEST_CONFIGURATION+1]:
+    for benchmark in benchmarks:
         b_name = benchmark['name']
         click.echo(f"Benchmark: {b_name}")
         # check that the benchmark has the right keys
@@ -283,6 +287,8 @@ def create_benchmark(config: Dict[str, Any]):
         record = {"expected_divergence": benchmark["expected_divergence"]}
         for i in range(config["n_generated_programs"]):
             # save json file with record
+            record["circuit_id"] = str(i)
+            record["benchmark_name"] = b_name
             with open(os.path.join(ground_truth_folder, f"{i}.json"), "w") as f:
                 json.dump(record, f)
 
@@ -291,15 +297,13 @@ def run_benchmark(config: Dict[str, Any]):
     """Run the benchmark from the given config file."""
     click.echo("Running benchmark...")
 
-    detectors = []
-    if "ks" in config["detectors"]:
-        detectors.append(KS_Detector())
+    detectors = config["detectors"]
 
     benchmarks = config["benchmarks_configurations"]
 
     check_folder_structure(config)
 
-    for benchmark in benchmarks[TEST_CONFIGURATION:TEST_CONFIGURATION+1]:
+    for benchmark in benchmarks:
         b_name = benchmark['name']
 
         click.echo(f"Benchmark: {b_name}")
@@ -316,15 +320,19 @@ def run_benchmark(config: Dict[str, Any]):
         print(f"Execution folder B: {exec_folder_B}")
         for name, res_a, res_b in iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True):
             for detector in detectors:
+                detector_object = eval(detector["detector_object"])()
                 detector_prediction_folder = \
-                    os.path.join(prediction_folder, detector.name)
+                    os.path.join(prediction_folder, detector["name"])
                 Path(detector_prediction_folder).mkdir(
                     parents=True, exist_ok=True)
-                statistic, p_value = detector.check(res_a, res_b)
+                statistic, p_value = detector_object.check(res_a, res_b)
                 comparison = {
                     "statistic": statistic,
                     "p_value": p_value,
-                    "test": detector.name,
+                    "test": detector["name"],
+                    "test_long_name": detector["test_long_name"],
+                    "circuit_id": name,
+                    "benchmark_name": b_name
                 }
                 with open(os.path.join(detector_prediction_folder, name + ".json"), "w") as file:
                     json.dump(comparison, file)

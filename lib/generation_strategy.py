@@ -21,8 +21,9 @@ from qasm_manipulation import get_first_and_only_quantum_register
 
 class GenerationStrategy(ABC):
 
-    def __init__(self, out_folder: str):
+    def __init__(self, out_folder: str, benchmark_name: str):
         self.out_folder = out_folder
+        self.benchmark_name = benchmark_name
 
     def generate(self,
                  n_qubits: int, n_ops_range: Tuple[int, int],
@@ -49,6 +50,9 @@ class GenerationStrategy(ABC):
     def store_qasm(self, filename: str, qasm_content: str,
                    out_folder: str, metadata_dict: Dict):
         """Save the results to a csv file."""
+        metadata_dict["circuit_id"] = filename
+        metadata_dict["benchmark_name"] = self.benchmark_name
+
         # save the metadata to a json file
         with open(os.path.join(out_folder, f"{filename}.json"), "w") as f:
             json.dump(metadata_dict, f)
@@ -71,8 +75,6 @@ class DerivationStrategy(GenerationStrategy):
 
 class WeightedRandomCircuitGenerator(GenerationStrategy):
 
-    def __init__(self, out_folder: str):
-        super().__init__(out_folder)
 
     def random_circuit_encoding(self, n_ops, random_state):
         """Randomly generate an encoding for a circit."""
@@ -200,9 +202,6 @@ class WeightedRandomCircuitGenerator(GenerationStrategy):
 class FakeCircuitGenerator(GenerationStrategy):
     """Generate a fake circuit."""
 
-    def __init__(self, out_folder: str):
-        super().__init__(out_folder)
-
     def _generate_single_program(self, circuit_id: str):
         """Generate QASM program and its metadata."""
         dumb_string = f"{self.n_qubits}  # number of qubits of the fake circuit"
@@ -216,8 +215,8 @@ class FakeCircuitGenerator(GenerationStrategy):
 class FamousCircuitGenerator(GenerationStrategy):
     """Generate a famous circuit."""
 
-    def __init__(self, out_folder: str):
-        super().__init__(out_folder)
+    def __init__(self, out_folder: str, benchmark_name: str):
+        super().__init__(out_folder, benchmark_name)
         famous_algos_folder = "../data/QASMBench/famous_algos"
         # read all the file in the folder
         files = sorted(os.listdir(famous_algos_folder))
