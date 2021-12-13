@@ -19,6 +19,10 @@ from qasm_manipulation import append_1Q_gate
 from qasm_manipulation import get_first_and_only_quantum_register
 
 
+class NoMoreProgramsAvailable(Exception):
+    pass
+
+
 class GenerationStrategy(ABC):
 
     def __init__(self, out_folder: str, benchmark_name: str):
@@ -240,7 +244,7 @@ class FamousCircuitGenerator(GenerationStrategy):
                 "strategy_program_generation": self.__class__.__name__
             }
             return algo, metadata_dict
-        return "", {}
+        raise NoMoreProgramsAvailable("No more famous algos available.")
 
 
 class FinalNotCircuitModifier(DerivationStrategy):

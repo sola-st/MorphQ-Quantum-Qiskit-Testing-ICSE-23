@@ -128,6 +128,7 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
     ]
 
     random.seed(config["random_seed"])
+    stop_generation = False
     for i in range(n_generated_programs):
         # sample a number of qubits
         n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
@@ -136,13 +137,17 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
             seed = config["random_seed"]
             if "random_seed" in benchmark_config[sample_name].keys():
                 seed = benchmark_config[sample_name]["random_seed"]
-            generator.generate(
-                n_qubits=n_qubits,
-                n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
-                gate_set=config["gate_set"],
-                random_seed=seed,
-                circuit_id=str(i))
-
+            try:
+                generator.generate(
+                    n_qubits=n_qubits,
+                    n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
+                    gate_set=config["gate_set"],
+                    random_seed=seed,
+                    circuit_id=str(i))
+            except NoMoreProgramsAvailable:
+                stop_generation = True
+        if stop_generation:
+            break
 
 def generate_once_and_copy(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
     """Generate the samples A and copy the same in sample B."""
@@ -160,12 +165,15 @@ def generate_once_and_copy(benchmark_name: str, benchmark_config: Dict[str, Any]
         # sample a number of qubits
         n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
         # create the program and store them automatically
-        generator.generate(
-            n_qubits=n_qubits,
-            n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
-            gate_set=config["gate_set"],
-            random_seed=config["random_seed"],
-            circuit_id=str(i))
+        try:
+            generator.generate(
+                n_qubits=n_qubits,
+                n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
+                gate_set=config["gate_set"],
+                random_seed=config["random_seed"],
+                circuit_id=str(i))
+        except NoMoreProgramsAvailable:
+            break
 
     # copy the generated programs to the other sample
     source_folder = get_benchmark_folder(
@@ -195,24 +203,35 @@ def generate_once_and_derive(benchmark_name: str, benchmark_config: Dict[str, An
             benchmark_name=benchmark_name)
 
     random.seed(config["random_seed"])
+    stop_generation = False
     for i in range(n_generated_programs):
         # sample a number of qubits
         n_qubits = random.randint(config["min_n_qubits"], config["max_n_qubits"])
         # create the program and store them automatically
-        qasm_content, metadata = generator_A.generate(
-            n_qubits=n_qubits,
-            n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
-            gate_set=config["gate_set"],
-            random_seed=config["random_seed"],
-            circuit_id=str(i))
+        try:
+            qasm_content, metadata = generator_A.generate(
+                n_qubits=n_qubits,
+                n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
+                gate_set=config["gate_set"],
+                random_seed=config["random_seed"],
+                circuit_id=str(i))
+        except NoMoreProgramsAvailable:
+            stop_generation = True
+
         # derive the B sample
         generator_B.load_existing_program(qasm_content, metadata)
-        qasm_content, metadata = generator_B.generate(
-            n_qubits=n_qubits,
-            n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
-            gate_set=config["gate_set"],
-            random_seed=config["random_seed"],
-            circuit_id=str(i))
+        try:
+            qasm_content, metadata = generator_B.generate(
+                n_qubits=n_qubits,
+                n_ops_range=(config["min_n_ops"], config["max_n_ops"]),
+                gate_set=config["gate_set"],
+                random_seed=config["random_seed"],
+                circuit_id=str(i))
+        except NoMoreProgramsAvailable:
+            stop_generation = True
+
+        if stop_generation:
+            break
 
 
 
