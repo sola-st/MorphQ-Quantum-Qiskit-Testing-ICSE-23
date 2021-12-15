@@ -28,6 +28,11 @@ detectors:
   - name: ks
     test_long_name: Kolmogorov–Smirnov Test
     detector_object: KS_Detector
+  - name: energy
+    test_long_name: Energy Test
+    detector_object: Energy_Detector
+    parallel_execution: true
+    random_seed: 1234
 
 
 # FOLDERS
@@ -59,11 +64,11 @@ benchmarks_configurations:
       execution_object: CirqCircuit
     sample_b:
       execution_object: QiskitCircuit
-  - name: across_runs
+  - name: across_runs_cirq
     description: |
       Sample A: random program x, executed on Cirq.
       Sample B: random program x, executed on Cirq (second time).
-    title: Real (Random) Program across two runs
+    title: Random Program across two runs (Cirq)
     expected_divergence: false
     # if the generation strategy is not at a sample level it means that the two samples are executing the same QASM circuit.
     samples_relationship: identical
@@ -72,6 +77,19 @@ benchmarks_configurations:
       execution_object: CirqCircuit
     sample_b:
       execution_object: CirqCircuit
+  - name: across_runs_qiskit
+    description: |
+      Sample A: random program x, executed on Qiskit.
+      Sample B: random program x, executed on Qiskit (second time).
+    title: Random Program across two runs (Qiskit)
+    expected_divergence: false
+    # if the generation strategy is not at a sample level it means that the two samples are executing the same QASM circuit.
+    samples_relationship: identical
+    generation_object: WeightedRandomCircuitGenerator
+    sample_a:
+      execution_object: QiskitCircuit
+    sample_b:
+      execution_object: QiskitCircuit
   - name: negation
     description: |
       Sample A: random program x, executed on Cirq.

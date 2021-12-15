@@ -27,6 +27,9 @@ from generation_strategy import *
 from simulators import *
 from simulators_mockup import *
 
+from multiprocessing import Pool
+from functools import partial
+
 from typing import Dict, Any, List
 
 
@@ -312,6 +315,32 @@ def create_benchmark(config: Dict[str, Any]):
                 json.dump(record, f)
 
 
+
+def run_test(name, res_a, res_b, b_name, detector, detector_pred_folder):
+    print(f"Running detector: {name} on circuit {name}")
+    random_seed = detector.get("random_seed", None)
+    comparison = {
+        "test": detector["name"],
+        "test_long_name": detector["test_long_name"],
+        "circuit_id": name,
+        "benchmark_name": b_name,
+        "random_seed": random_seed
+    }
+    detector_object = eval(detector["detector_object"])()
+    try:
+        statistic, p_value = detector_object.check(res_a, res_b, random_seed)
+        comparison["statistic"] = statistic
+        comparison["p_value"] = p_value
+    except Exception as e:
+        comparison["statistic"] = 0
+        comparison["p_value"] = -1
+        comparison["exception"] = str(e)
+    with open(os.path.join(detector_pred_folder, name + ".json"), "w") as file:
+        json.dump(comparison, file)
+        file.close()
+
+
+
 def run_benchmark(config: Dict[str, Any]):
     """Run the benchmark from the given config file."""
     click.echo("Running benchmark...")
@@ -337,25 +366,29 @@ def run_benchmark(config: Dict[str, Any]):
         print(f"Prediction folder: {prediction_folder}")
         print(f"Execution folder A: {exec_folder_A}")
         print(f"Execution folder B: {exec_folder_B}")
-        for name, res_a, res_b in iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True):
-            for detector in detectors:
-                detector_object = eval(detector["detector_object"])()
-                detector_prediction_folder = \
-                    os.path.join(prediction_folder, detector["name"])
-                Path(detector_prediction_folder).mkdir(
+        for detector in detectors:
+            print("-" * 80)
+            print("Detector:", detector['name'])
+            detector_pred_folder = \
+                os.path.join(prediction_folder, detector["name"])
+            Path(detector_pred_folder).mkdir(
                     parents=True, exist_ok=True)
-                statistic, p_value = detector_object.check(res_a, res_b)
-                comparison = {
-                    "statistic": statistic,
-                    "p_value": p_value,
-                    "test": detector["name"],
-                    "test_long_name": detector["test_long_name"],
-                    "circuit_id": name,
-                    "benchmark_name": b_name
-                }
-                with open(os.path.join(detector_prediction_folder, name + ".json"), "w") as file:
-                    json.dump(comparison, file)
-                    file.close()
+
+
+            if detector.get('parallel_execution', False):
+                print("Parallel execution")
+                with Pool() as pool:
+                    pool.starmap(
+                        partial(run_test,
+                                b_name=b_name,
+                                detector=detector,
+                                detector_pred_folder=detector_pred_folder),
+                        list(iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True))
+                    )
+            else:
+                print("Sequential execution")
+                for name, res_a, res_b in iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True):
+                    run_test(name, res_a, res_b, b_name, detector, detector_pred_folder)
 
 
 @click.group()
