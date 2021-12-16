@@ -14,7 +14,7 @@ gate_set:
   ry: 1
   rz: 1
   p: 1
-n_generated_programs: 20
+n_generated_programs: 1000
 
 # EXECUTION
 strategy_sample_size_estimation: null # "qdiff[cited paper]" | null
@@ -28,11 +28,11 @@ detectors:
   - name: ks
     test_long_name: Kolmogorov–Smirnov Test
     detector_object: KS_Detector
-  - name: energy
-    test_long_name: Energy Test
-    detector_object: Energy_Detector
-    parallel_execution: true
-    random_seed: 1234
+  #- name: energy
+  #  test_long_name: Energy Test
+  #  detector_object: Energy_Detector
+  #  parallel_execution: true
+  #  random_seed: 1234
 
 
 # FOLDERS

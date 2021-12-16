@@ -67,9 +67,10 @@ class Energy_Detector(Detector):
 
         if random_seed is not None:
             np.random.seed(random_seed)
-        print(f"WARINGING: subsampling {str(n_subsamples)} samples")
-        self.samples_A = np.random.choice(self.samples_A, size=n_subsamples, replace=False)
-        self.samples_B = np.random.choice(self.samples_B, size=n_subsamples, replace=False)
+
+        #print(f"WARINGING: subsampling {str(n_subsamples)} samples")
+        #self.samples_A = np.random.choice(self.samples_A, size=n_subsamples, replace=False)
+        #self.samples_B = np.random.choice(self.samples_B, size=n_subsamples, replace=False)
 
         n1 = len(self.samples_A)
         n2 = len(self.samples_B)
@@ -86,7 +87,8 @@ class Energy_Detector(Detector):
         energy_test = statistics_diff.EnergyStatistic(n1, n2)
         self.statistics, dist_matrix = energy_test.__call__(sample_1, sample_2, ret_matrix=True)
         dist_matrix = dist_matrix.to(torch.float32)
-        self.p_value = energy_test.pval(dist_matrix, n_permutations=1000)
+        # self.p_value = energy_test.pval(dist_matrix, n_permutations=1000)
+        self.p_value = -1
         if isinstance(self.p_value, torch.Tensor):
             self.p_value = self.p_value.item()
         if isinstance(self.statistics, torch.Tensor):

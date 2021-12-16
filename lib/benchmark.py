@@ -28,6 +28,7 @@ from simulators import *
 from simulators_mockup import *
 
 from multiprocessing import Pool
+import multiprocessing
 from functools import partial
 
 from typing import Dict, Any, List
@@ -374,10 +375,27 @@ def run_benchmark(config: Dict[str, Any]):
             Path(detector_pred_folder).mkdir(
                     parents=True, exist_ok=True)
 
-
             if detector.get('parallel_execution', False):
                 print("Parallel execution")
-                with Pool() as pool:
+                PARALLELISM = 10
+                semaphore = multiprocessing.Semaphore(PARALLELISM)
+
+                pool = multiprocessing.Pool(PARALLELISM)
+                for job_id, (name, res_a, res_b) in enumerate(iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True)):
+                    print(f"Starting job {job_id}")
+                    # pool.apply_async(do_job, [job_id])
+                    pool.apply_async(
+                        partial(run_test,
+                                b_name=b_name,
+                                detector=detector,
+                                detector_pred_folder=detector_pred_folder),
+                        [name, res_a, res_b]
+                    )
+                pool.close()
+                pool.join()
+
+                """
+                with Pool(processes=10) as pool:
                     pool.starmap(
                         partial(run_test,
                                 b_name=b_name,
@@ -385,6 +403,7 @@ def run_benchmark(config: Dict[str, Any]):
                                 detector_pred_folder=detector_pred_folder),
                         list(iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True))
                     )
+                """
             else:
                 print("Sequential execution")
                 for name, res_a, res_b in iterate_parallel(exec_folder_A, exec_folder_B, filetype=".json", parse_json=True):
@@ -396,7 +415,7 @@ def cli():
     pass
 
 
-def load_config_and_check(config_file: str, required_keys: List[str]):
+def load_config_and_check(config_file: str, required_keys: List[str]=[]):
     """Load the config file and check that it has the right keys."""
     with open(config_file, "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
