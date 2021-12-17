@@ -49,11 +49,15 @@ class Circuit(ABC):
         pass
 
     @abstractmethod
+    def to_custom_string(self):
+        pass
+
+    @abstractmethod
     def execute(self, custom_shots=None):
         pass
 
     @abstractmethod
-    def draw(self):
+    def draw(self, file=None):
         pass
 
     def get_result(self):
@@ -71,6 +75,9 @@ class QiskitCircuit(Circuit):
     def from_qasm(self, qasm_string):
         self.circuit = QuantumCircuit.from_qasm_str(qasm_string)
 
+    def to_custom_string(self):
+        return self.circuit.qasm()
+
     def execute(self, custom_shots=None):
         shots = custom_shots
         if shots is None:
@@ -79,8 +86,11 @@ class QiskitCircuit(Circuit):
         job_result = job.result()
         self.result = dict(job_result.get_counts())
 
-    def draw(self):
+    def draw(self, file=None):
+        if file is not None:
+            print(self.circuit.draw(), file=file)
         print(self.circuit.draw())
+
 
 
 class CirqCircuit(Circuit):
@@ -116,6 +126,9 @@ class CirqCircuit(Circuit):
         # rename all the measurements
         self.circuit = self._give_unique_ids_to_measurement()
 
+    def to_custom_string(self):
+        return cirq.to_json(self.circuit)
+
     def execute(self, custom_shots=None):
         shots = custom_shots
         if shots is None:
@@ -129,7 +142,9 @@ class CirqCircuit(Circuit):
             for (e, v) in counter.items()
         }
 
-    def draw(self):
+    def draw(self, file=None):
+        if file is not None:
+            print(self.circuit.to_text_diagram(), file=file)
         print(self.circuit.to_text_diagram())
 
     def _give_unique_ids_to_measurement(self):
