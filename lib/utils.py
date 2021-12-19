@@ -61,3 +61,36 @@ def iterate_parallel(folder_master, folder_slave, filetype, parse_json=False):
                     f.close()
                     result_tuple.append(file_content)
             yield result_tuple
+
+
+def iterate_parallel_n(folders, filetype, parse_json=False):
+    """
+    Iterate over the files in the given folders.
+
+    Note that only files in common between the folders are yielded.
+    """
+    files_in_folders = [
+        os.listdir(folder) for folder in folders
+    ]
+
+    files_in_common = list(set.intersection(*map(set, files_in_folders)))
+    files_to_yield = list(sorted([
+        file for file in files_in_common
+        if file.endswith(filetype)]))
+
+    for filename in files_to_yield:
+        filename_without_extension = filename.replace(filetype, "")
+        result_tuple = []
+        result_tuple.append(filename_without_extension)
+        for folder in folders:
+            # open the file and yield it
+            with open(os.path.join(folder, filename), 'r') as f:
+                if parse_json and filetype == '.json':
+                    # read json file
+                    file_content = json.load(f)
+                else:
+                    # read any other file
+                    file_content = f.read()
+                f.close()
+                result_tuple.append(file_content)
+            yield result_tuple

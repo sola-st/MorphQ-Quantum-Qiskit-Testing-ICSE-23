@@ -1,7 +1,8 @@
 
 import click
 import os
-from utils import load_config_and_check
+from utils import iterate_parallel, load_config_and_check
+from utils import iterate_parallel_n
 from pathlib import Path
 import random
 
@@ -10,6 +11,10 @@ from generation_strategy import *
 import subprocess
 import sys
 import json
+
+from itertools import combinations
+
+from detectors import *
 
 
 def get_folder(config, comparison_name, stage, compiler_name=None):
@@ -49,7 +54,7 @@ def run_programs(source_folder, dest_folder, python_path=None):
     files = os.listdir(source_folder)
     py_files = [f for f in files if f.endswith(".py")]
     for filename in py_files:
-        prefix = filename.replace(".py", "")
+        prefix = filename.split("_")[0]
         print(f"Executing: {filename}")
         with open(os.path.join(dest_folder, prefix + ".json"), 'w') as output_file:
             script_to_execute = os.path.join(source_folder, filename)
@@ -61,7 +66,6 @@ def run_programs(source_folder, dest_folder, python_path=None):
             res = json.loads(output)
             print(res)
             json.dump(res, output_file)
-
 
 
 def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None):
@@ -76,6 +80,7 @@ def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None
         string_to_execute = f"{qconvert_path} -h -s qasm -d {dest_format} -i {src_filepath} -o {dest_filepath}"
         print(string_to_execute)
         os.system(string_to_execute)
+
 
 def generate_and_run_programs(config: Dict[str, Any]) -> None:
     """Generate and run the programs."""
@@ -134,7 +139,61 @@ def generate_and_run_programs(config: Dict[str, Any]) -> None:
 
 def detect_divergence(config: Dict[str, Any]) -> None:
     """Detect the divergence."""
-    pass
+
+    detectors = config["detectors"]
+
+    for detector in detectors:
+        print("-" * 80)
+        print("Running detector:", detector["name"])
+        detector_object = eval(detector["detector_object"])()
+        for comparison in config["comparisons"]:
+
+            compiler_names = [compiler["name"] for compiler in comparison["compilers"]]
+
+            random_seed = detector.get("random_seed", None)
+
+            compiler_folders = [
+                get_folder(config, comparison["name"], "executions", compiler_name)
+                for compiler_name in compiler_names
+            ]
+
+            for (circuit_id, *compiler_results) in iterate_parallel_n(folders=compiler_folders, filetype='.json', parse_json=True):
+                print("Analyzing circuit: ", circuit_id)
+                print(len(compiler_results))
+
+                prediction = {
+                    "test": detector["name"],
+                    "test_long_name": detector["test_long_name"],
+                    "comparison_name": comparison["name"],
+                    "circuit_id": circuit_id,
+                    "random_seed": random_seed
+                }
+
+                named_results = zip(compiler_names, compiler_results)
+                differential_pairs = combinations(named_results, 2)
+                alarm_pairs = []
+
+                for ((name_A, res_A), (name_B, res_B)) in differential_pairs:
+                    sorted_compilers = sorted([name_A, name_B])
+                    pair_name = f"{sorted_compilers[0]}_{sorted_compilers[1]}"
+                    print("Comparing: ", pair_name)
+
+                    try:
+                        statistic, p_value = detector_object.check(res_A, res_B, random_seed)
+                        prediction[f"statistic_{pair_name}"] = statistic
+                        prediction[f"p_value_{pair_name}"] = p_value
+                    except Exception as e:
+                        prediction[f"statistic_{pair_name}"] = 0
+                        prediction[f"p_value_{pair_name}"] = -1
+                        prediction["exception"] = str(e)
+
+                # save file
+                detector_pred_folder = get_folder(
+                    config, comparison["name"], "predictions")
+                with open(os.path.join(detector_pred_folder, circuit_id + ".json"), "w") as file:
+                    json.dump(prediction, file)
+                    file.close()
+
 
 
 @click.group()
