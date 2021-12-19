@@ -33,58 +33,12 @@ from functools import partial
 
 from typing import Dict, Any, List
 
+from utils import iterate_over
+from utils import iterate_parallel
+from utils import load_config_and_check
+
 
 TEST_CONFIGURATION = 4
-
-
-def load_json(filename, folder):
-    """
-    Read the json file at the given path.
-    """
-    with open(os.path.join(folder, filename), 'r') as f:
-        return json.load(f)
-
-
-def iterate_over(folder, filetype, parse_json=False):
-    """
-    Iterate over the files in the given folder.
-    """
-    for file in os.listdir(folder):
-        if file.endswith(filetype):
-            # open the file and yield it
-            with open(os.path.join(folder, file), 'r') as f:
-                if parse_json and filetype == '.json':
-                    # read json file
-                    file_content = json.load(f)
-                else:
-                    # read any other file
-                    file_content = f.read()
-                f.close()
-            filename_without_extension = file.replace(filetype, "")
-            yield filename_without_extension, file_content
-
-
-def iterate_parallel(folder_master, folder_slave, filetype, parse_json=False):
-    """
-    Iterate over the files in the given folder.
-    """
-    for file in os.listdir(folder_master):
-        if file.endswith(filetype):
-            filename_without_extension = file.replace(filetype, "")
-            result_tuple = []
-            result_tuple.append(filename_without_extension)
-            for folder in [folder_master, folder_slave]:
-                # open the file and yield it
-                with open(os.path.join(folder, file), 'r') as f:
-                    if parse_json and filetype == '.json':
-                        # read json file
-                        file_content = json.load(f)
-                    else:
-                        # read any other file
-                        file_content = f.read()
-                    f.close()
-                    result_tuple.append(file_content)
-            yield result_tuple
 
 
 def check_folder_structure(config):
@@ -152,6 +106,7 @@ def joined_generation(benchmark_name: str, benchmark_config: Dict[str, Any], con
                 stop_generation = True
         if stop_generation:
             break
+
 
 def generate_once_and_copy(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
     """Generate the samples A and copy the same in sample B."""
@@ -238,7 +193,6 @@ def generate_once_and_derive(benchmark_name: str, benchmark_config: Dict[str, An
             break
 
 
-
 def joined_execution(benchmark_name: str, benchmark_config: Dict[str, Any], config: Dict[str, Any]):
     """Jointly execute the programs A and B in a sequential way."""
     click.echo("Joint execution...")
@@ -316,7 +270,6 @@ def create_benchmark(config: Dict[str, Any]):
                 json.dump(record, f)
 
 
-
 def run_test(name, res_a, res_b, b_name, detector, detector_pred_folder):
     print(f"Running detector: {name} on circuit {name}")
     random_seed = detector.get("random_seed", None)
@@ -339,7 +292,6 @@ def run_test(name, res_a, res_b, b_name, detector, detector_pred_folder):
     with open(os.path.join(detector_pred_folder, name + ".json"), "w") as file:
         json.dump(comparison, file)
         file.close()
-
 
 
 def run_benchmark(config: Dict[str, Any]):
@@ -413,15 +365,6 @@ def run_benchmark(config: Dict[str, Any]):
 @click.group()
 def cli():
     pass
-
-
-def load_config_and_check(config_file: str, required_keys: List[str]=[]):
-    """Load the config file and check that it has the right keys."""
-    with open(config_file, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    for key in required_keys:
-        assert key in config.keys(), f"Missing key: {key}"
-    return config
 
 
 @cli.command()
