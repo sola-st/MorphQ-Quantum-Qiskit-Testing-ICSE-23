@@ -1,3 +1,5 @@
+# First try of cross-platform comparison (no ground truth available)
+
 # GLOBAL
 
 min_n_qubits: 2
