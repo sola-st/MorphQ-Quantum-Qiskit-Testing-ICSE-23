@@ -10,7 +10,17 @@ from cirq import Simulator
 from cirq.contrib.qasm_import import circuit_from_qasm
 from cirq.ops.measurement_gate import MeasurementGate
 
+from pathlib import Path
 import re
+import os
+import hashlib
+import yaml
+
+
+
+
+from utils import convert_single_program
+from utils import run_single_program
 
 
 # CIRQ: supporting function
@@ -92,7 +102,6 @@ class QiskitCircuit(Circuit):
         print(self.circuit.draw())
 
 
-
 class CirqCircuit(Circuit):
 
     def __init__(self, repetitions=1024):
@@ -165,3 +174,67 @@ class CirqCircuit(Circuit):
             #print(new_moment_ops)
             new_circuit.append(cirq.Moment(new_moment_ops))
         return cirq.Circuit(new_circuit)
+
+
+class QconvertCircuit(Circuit):
+
+    def __init__(self, target_platform="qiskit", repetitions=1024):
+        super(QconvertCircuit, self).__init__(repetitions=1024)
+        # load yaml file
+        with open("../config/qconvert_settings.yaml", 'r') as yaml_file:
+            config = yaml.load(yaml_file, Loader=yaml.FullLoader)
+        self.qconvert_path = config["qconvert_path"]
+        self.python_path = config["python_path"]
+        self.platforms = config["platforms"]
+        self.platform_name = f'qconvert_{target_platform}'
+        self.target_platform = target_platform
+        # create a local cache folder
+        self.tmp_folder = "./qconvert_tmp_cache"
+        Path(self.tmp_folder).mkdir(parents=True, exist_ok=True)
+
+    def from_qasm(self, qasm_string):
+        self.qasm_string = qasm_string
+        # materialize a tmp qasm file
+        to_encode = qasm_string + self.target_platform
+        self.qasm_digest = hashlib.sha224(to_encode.encode('utf-8')).hexdigest()
+        self.qasm_path = os.path.join(self.tmp_folder, self.qasm_digest + ".qasm")
+        with open(self.qasm_path, "w") as qasm_file:
+            qasm_file.write(qasm_string)
+        self.platform_path = convert_single_program(
+            target_program=self.qasm_path,
+            dest_folder=self.tmp_folder,
+            dest_format=self.target_platform,
+            qconvert_path=self.qconvert_path)
+        # read the file at the platform_path
+        with open(self.platform_path, "r") as platform_file:
+            self.platform_string = platform_file.read()
+
+    def to_custom_string(self):
+        custom_string = "QASM:\n"
+        custom_string += "-" * 80 + "\n"
+        custom_string += self.qasm_string + "\n"
+        custom_string += "-" * 80 + "\n"
+        custom_string += self.target_platform + "\n"
+        custom_string += "-" * 80 + "\n"
+        custom_string += self.platform_string + "\n"
+        self.custom_string = custom_string
+        return custom_string
+
+    def execute(self, custom_shots=None):
+        shots = custom_shots
+        if shots is None:
+            shots = self.repetitions
+        # rewrite the number of shots
+        with open(self.platform_path, "w") as platform_file:
+            my_platform = self.platforms[self.target_platform]
+            platform_file.write(self.platform_string.replace(
+                my_platform["shots_lookup"],
+                my_platform["shots_substitute"].format(injected_shot=shots)))
+        # execute the file
+        self.result = run_single_program(
+            target_file=self.platform_path,
+            dest_folder=self.tmp_folder,
+            python_path=self.python_path)
+
+    def draw(self, file=None):
+        print(self.to_custom_string())

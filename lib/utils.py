@@ -138,9 +138,9 @@ def convert_single_program(target_program, dest_folder, dest_format="pyquil", qc
     if qconvert_path is None:
         raise ValueError("qconvert_path must be specified")
     filename = os.path.basename(target_program)
-    dest_filepath = os.path.join(dest_folder, filename.replace(".qasm", "_" + dest_format) + ".py")
+    dest_filepath = os.path.join(dest_folder, filename.replace(".qasm", ".py"))
     string_to_execute = f"{qconvert_path} -h -s qasm -d {dest_format} -i {target_program} -o {dest_filepath}"
-    #print(string_to_execute)
+    # print(string_to_execute)
     os.system(string_to_execute)
     return dest_filepath
 

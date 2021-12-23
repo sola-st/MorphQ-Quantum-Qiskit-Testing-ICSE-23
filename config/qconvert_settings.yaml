@@ -1,0 +1,22 @@
+# Settings for Qconvert
+# - where to find qconvert utility and python path
+# - how to replace the shots in the produced files
+
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+
+platforms:
+  qiskit:
+    shots_lookup: "shots = 1024"
+    shots_substitute: "shots = {injected_shot}"
+  cirq:
+    shots_lookup: "repetitions=1024"
+    shots_substitute: "repetitions={injected_shot}"
+  pyquil:
+    shots_lookup: "shots = 1024"
+    shots_substitute: "shots = {injected_shot}"
+
+
+

@@ -11,7 +11,9 @@ data/experiment_v00/*
 data/experiment_v01/*
 data/experiment_v02/*
 data/experiment_v03/*
+data/experiment_v04/*
 data/circuit_image/*
 data/dd_v00/*
+notebooks/qconvert_tmp_cache/*
 
 node_converter/node_modules/*
