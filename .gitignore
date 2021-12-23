@@ -12,5 +12,6 @@ data/experiment_v01/*
 data/experiment_v02/*
 data/experiment_v03/*
 data/circuit_image/*
+data/dd_v00/*
 
 node_converter/node_modules/*

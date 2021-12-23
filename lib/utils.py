@@ -2,6 +2,7 @@ import os
 import json
 import yaml
 from typing import List
+import subprocess
 
 
 def load_config_and_check(config_file: str, required_keys: List[str] = []):
@@ -94,3 +95,67 @@ def iterate_parallel_n(folders, filetype, parse_json=False):
                 f.close()
                 result_tuple.append(file_content)
             yield result_tuple
+
+
+# QUANTUM CONVERSION
+
+
+def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None):
+    if qconvert_path is None:
+        raise ValueError("qconvert_path must be specified")
+    files = os.listdir(source_folder)
+    qasm_files = [f for f in files if f.endswith(".qasm")]
+    print(qasm_files)
+    for filename in qasm_files:
+        src_filepath = os.path.join(source_folder, filename)
+        dest_filepath = os.path.join(dest_folder, filename.replace(".qasm", "_" + dest_format) + ".py")
+        string_to_execute = f"{qconvert_path} -h -s qasm -d {dest_format} -i {src_filepath} -o {dest_filepath}"
+        print(string_to_execute)
+        os.system(string_to_execute)
+
+
+def run_programs(source_folder, dest_folder, python_path=None):
+    if python_path is None:
+        raise ValueError("python_path must be specified")
+    files = os.listdir(source_folder)
+    py_files = [f for f in files if f.endswith(".py")]
+    for filename in py_files:
+        prefix = filename.split("_")[0]
+        print(f"Executing: {filename}")
+        with open(os.path.join(dest_folder, prefix + ".json"), 'w') as output_file:
+            script_to_execute = os.path.join(source_folder, filename)
+            proc = subprocess.Popen(
+                [python_path, script_to_execute],
+                stdout=subprocess.PIPE)
+            output = str(proc.stdout.read().decode('unicode_escape'))
+            output = output.replace("'", '"')
+            res = json.loads(output)
+            print(res)
+            json.dump(res, output_file)
+
+
+def convert_single_program(target_program, dest_folder, dest_format="pyquil", qconvert_path=None):
+    if qconvert_path is None:
+        raise ValueError("qconvert_path must be specified")
+    filename = os.path.basename(target_program)
+    dest_filepath = os.path.join(dest_folder, filename.replace(".qasm", "_" + dest_format) + ".py")
+    string_to_execute = f"{qconvert_path} -h -s qasm -d {dest_format} -i {target_program} -o {dest_filepath}"
+    #print(string_to_execute)
+    os.system(string_to_execute)
+    return dest_filepath
+
+
+def run_single_program(target_file, dest_folder, python_path=None):
+    if python_path is None:
+        raise ValueError("python_path must be specified")
+    filename = os.path.basename(target_file).replace(".py", "")
+    with open(os.path.join(dest_folder, filename + ".json"), 'w') as output_file:
+        proc = subprocess.Popen(
+            [python_path, target_file],
+            stdout=subprocess.PIPE)
+        output = str(proc.stdout.read().decode('unicode_escape'))
+        output = output.replace("'", '"')
+        res = json.loads(output)
+        #print(res)
+        json.dump(res, output_file)
+    return res

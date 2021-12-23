@@ -136,6 +136,19 @@ class QasmModifier(object):
         self.original_qasm = original_qasm
         self.lines = original_qasm.split("\n")
         self.lines = [l for l in self.lines if not l.strip() == ""]
+        self.hidable_lines = [
+            no_line
+            for no_line, line in enumerate(self.lines)
+            if not (
+                line.startswith("OPENQASM") or
+                line.startswith("include") or
+                line.startswith("qreg") or
+                line.startswith("creg") or
+                line.startswith("//") or
+                line.startswith("barrier") or
+                line.startswith("measure")
+            )
+        ]
         self.mask_hide = np.zeros(len(self.lines), dtype=bool)
         self.registers = detect_registers(self.original_qasm)
         self._detect_qubits()
@@ -187,13 +200,10 @@ class QasmModifier(object):
             self.mask_hide[-1] = False
 
     def hide_before_line(self, line_no):
-        """Hide all the operations after the passed line number."""
-        if line_no < len(self.lines):
-            self.mask_hide[:line_no + 1] = True
-        i = 1
-        while not self.lines[i-1].startswith("creg"):
-            self.mask_hide[self.lines[i]] = False
-            i += 1
+        """Hide all the operations before the passed line number."""
+        for i in range(line_no):
+            if i in self.hidable_lines:
+                self.mask_hide[i] = True
 
     def get_visible(self):
         new_text = "\n".join([
@@ -201,9 +211,26 @@ class QasmModifier(object):
             for no_line, line in enumerate(self.lines)
             if not self.mask_hide[no_line]
         ])
-        print(new_text)
+        #print(new_text)
         return new_text
 
+    def get_available_lines(self):
+        return self.hidable_lines
+
+    def set_visible_only(self, list_visible_lines):
+        # set all as hidden
+        self.mask_hide = np.ones(len(self.lines), dtype=bool)
+        # restore visibility for lines passed in the list
+        for line_no in list_visible_lines:
+            self.mask_hide[line_no] = False
+        # restore the visibility for all the essential lines
+        # namely those which are not hidable
+        for i in range(len(self.lines)):
+            if i not in self.hidable_lines:
+                self.mask_hide[i] = False
+
+    def reset_mask(self):
+        self.mask_hide = np.zeros(len(self.lines), dtype=bool)
 
 def test_detect_registers():
     assert detect_registers(qasm_content) == [

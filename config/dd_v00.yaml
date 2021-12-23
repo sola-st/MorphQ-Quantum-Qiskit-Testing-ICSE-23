@@ -1,0 +1,27 @@
+# Run the Delta Debugging algorithm on a specific QASM file
+
+# FILE UNDER TEST
+start_qasm_file: ../data/experiment_v03/cross_platform/original_programs/32.qasm
+
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+
+# EXECUTION
+strategy_sample_size_estimation: null
+fixed_sample_size: 8192
+
+# DETECTORS
+detectors:
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
+
+# FOLDERS
+experiment_folder: ../data/dd_v00/
+tmp_folder: ../data/dd_v00/tmp
+
+
+
+
