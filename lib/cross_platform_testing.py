@@ -18,6 +18,9 @@ from itertools import combinations
 from detectors import *
 from utils import convert
 from utils import run_programs
+from utils import iterate_over_program_ids
+from utils import iterate_over_pairs_of_group
+
 
 
 def replace_in_all_files(folder, detect_string, substitute_string):
@@ -122,7 +125,8 @@ def generate_and_run_programs(config: Dict[str, Any]) -> None:
                 source_folder=compiler_specific_folder,
                 dest_folder=get_folder(
                         config, comparison["name"], "executions", compiler_name),
-                python_path=config["python_path"])
+                python_path=config["python_path"],
+                n_executions=config["n_executions"])
 
 
 def detect_divergence(config: Dict[str, Any]) -> None:
@@ -136,50 +140,62 @@ def detect_divergence(config: Dict[str, Any]) -> None:
         detector_object = eval(detector["detector_object"])()
         for comparison in config["comparisons"]:
 
-            compiler_names = [compiler["name"] for compiler in comparison["compilers"]]
+            compiler_names = [
+                compiler["name"] for compiler in comparison["compilers"]]
 
             random_seed = detector.get("random_seed", None)
 
-            compiler_folders = [
-                get_folder(config, comparison["name"], "executions", compiler_name)
-                for compiler_name in compiler_names
-            ]
+            for program_id, group_same_program_id in iterate_over_program_ids(
+                    execution_folder=get_folder(
+                        config, comparison["name"], "executions"),
+                    compilers_names=compiler_names):
+                print("Circuit ID: ", program_id)
+                print("-" * 80)
+                # print("Elements in the group:", group_same_program_id)
+                # print("-" * 80)
 
-            for (circuit_id, *compiler_results) in iterate_parallel_n(folders=compiler_folders, filetype='.json', parse_json=True):
-                print("Analyzing circuit: ", circuit_id)
-                print(len(compiler_results))
-
+                # generate program-specific json output
                 prediction = {
                     "test": detector["name"],
                     "test_long_name": detector["test_long_name"],
                     "comparison_name": comparison["name"],
-                    "circuit_id": circuit_id,
+                    "circuit_id": program_id,
                     "random_seed": random_seed
                 }
+                comparisons = []
 
-                named_results = zip(compiler_names, compiler_results)
-                differential_pairs = combinations(named_results, 2)
-                alarm_pairs = []
+                for path_exec_a, path_exec_b, res_A, res_B in iterate_over_pairs_of_group(group_same_program_id):
+                    # print("res_a: ", len(res_A))
+                    # print("res_b: ", len(res_B))
+                    sorted_paths = sorted([path_exec_a, path_exec_b])
+                    # ran detector
 
-                for ((name_A, res_A), (name_B, res_B)) in differential_pairs:
-                    sorted_compilers = sorted([name_A, name_B])
-                    pair_name = f"{sorted_compilers[0]}_{sorted_compilers[1]}"
-                    print("Comparing: ", pair_name)
+                    pair = {
+                        "platform_a": sorted_paths[0].split("/")[-2],
+                        "platform_b": sorted_paths[1].split("/")[-2],
+                        "path_exec_a": sorted_paths[0],
+                        "path_exec_b": sorted_paths[1]
+                    }
 
                     try:
                         statistic, p_value = detector_object.check(res_A, res_B, random_seed)
-                        prediction[f"statistic_{pair_name}"] = statistic
-                        prediction[f"p_value_{pair_name}"] = p_value
+                        pair[f"statistic"] = statistic
+                        pair[f"p_value"] = p_value
                     except Exception as e:
-                        prediction[f"statistic_{pair_name}"] = 0
-                        prediction[f"p_value_{pair_name}"] = -1
-                        prediction["exception"] = str(e)
+                        prediction[f"statistic"] = 0
+                        pair[f"p_value"] = -1
+                        pair["exception"] = str(e)
+
+                    comparisons.append(pair)
+
+                # save detector result for this program_ID
+                prediction["comparisons"] = comparisons
 
                 # save file
                 detector_pred_folder = get_folder(
                     config, comparison["name"], "predictions", detector["name"])
                 Path(detector_pred_folder).mkdir(parents=True, exist_ok=True)
-                with open(os.path.join(detector_pred_folder, circuit_id + ".json"), "w") as file:
+                with open(os.path.join(detector_pred_folder, program_id + ".json"), "w") as file:
                     json.dump(prediction, file)
                     file.close()
 

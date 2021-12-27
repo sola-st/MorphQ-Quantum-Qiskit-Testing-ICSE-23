@@ -3,6 +3,8 @@ import json
 import yaml
 from typing import List
 import subprocess
+from itertools import combinations
+import pandas as pd
 
 
 def load_config_and_check(config_file: str, required_keys: List[str] = []):
@@ -97,6 +99,91 @@ def iterate_parallel_n(folders, filetype, parse_json=False):
             yield result_tuple
 
 
+# COMBINATIONS OF COMPARISONS
+
+def read_execution_folder(folder_with_execs, compiler_name):
+    """Parse execution folder: info on the program_id and execution."""
+    files = os.listdir(os.path.join(folder_with_execs, compiler_name))
+    records = []
+    for filename in files:
+        new_record = {}
+        new_record["compiler_name"] = compiler_name
+        new_record["program_id"] = filename.split("_")[0]
+        new_record["exec_iteration"] = \
+            filename.split("_")[1].replace(".json", "")
+        new_record["filename"] = filename
+        new_record["filepath"] = os.path.join(
+            folder_with_execs, compiler_name, filename)
+        records.append(new_record)
+    return records
+
+
+def iterate_over_program_ids(execution_folder, compilers_names):
+    """Iterate over all possible program_IDs.
+
+    It yields the group with all pairs of executions refering to the same
+    program_ID.
+    """
+    all_records = []
+    for i_compiler in compilers_names:
+        i_records = read_execution_folder(
+            folder_with_execs=execution_folder,
+            compiler_name=i_compiler)
+        all_records.extend(i_records)
+
+    df_all = pd.DataFrame.from_records(all_records)
+
+    df_all_pairs = create_pairs(
+        df_all_executions=df_all,
+        compilers_names=compilers_names)
+
+    for program_id in sorted(df_all_pairs["program_id"].unique()):
+        print(f"program_id: {program_id}")
+        # keep only pairs of this program ID
+        df_single_program_id = df_all_pairs[
+            df_all_pairs["program_id"] == program_id
+        ]
+        # prepare the pairs of paths to the two execution results
+        # from two different platforms
+        pairs_single_program_id = list(zip(
+            df_single_program_id["filepath_x"],
+            df_single_program_id["filepath_y"]
+        ))
+        yield program_id, pairs_single_program_id
+
+
+def create_pairs(df_all_executions, compilers_names):
+    """Create all comparisons of executions from different platforms."""
+    df = df_all_executions
+    # get all possible pairs of platforms
+    platforms_pairs = combinations(compilers_names, 2)
+
+    df_pairs_all_platforms = []
+
+    for platfrom_a, platfrom_b in platforms_pairs:
+        df_a = df[df["compiler_name"] == platfrom_a]
+        df_b = df[df["compiler_name"] == platfrom_b]
+        df_a_b = pd.merge(df_a, df_b, on="program_id")
+        df_pairs_all_platforms.append(df_a_b)
+
+    df_all_pairs = pd.concat(df_pairs_all_platforms, axis= 1)
+    return df_all_pairs
+
+
+def iterate_over_pairs_of_group(pairs):
+    """It iterates over the group made of pairs of json.
+
+    It yields every time two dictionary representing the execution of the two
+    elements in a pair.
+    """
+    for path_exec_a, path_exec_b in pairs:
+        with open(path_exec_a, 'r') as f:
+            res_a = json.load(f)
+        with open(path_exec_b, 'r') as f:
+            res_b = json.load(f)
+        yield path_exec_a, path_exec_b, res_a, res_b
+
+
 # QUANTUM CONVERSION
 
 
@@ -114,7 +201,7 @@ def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None
         os.system(string_to_execute)
 
 
-def run_programs(source_folder, dest_folder, python_path=None):
+def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
     if python_path is None:
         raise ValueError("python_path must be specified")
     files = os.listdir(source_folder)
@@ -122,16 +209,17 @@ def run_programs(source_folder, dest_folder, python_path=None):
     for filename in py_files:
         prefix = filename.split("_")[0]
         print(f"Executing: {filename}")
-        with open(os.path.join(dest_folder, prefix + ".json"), 'w') as output_file:
-            script_to_execute = os.path.join(source_folder, filename)
-            proc = subprocess.Popen(
-                [python_path, script_to_execute],
-                stdout=subprocess.PIPE)
-            output = str(proc.stdout.read().decode('unicode_escape'))
-            output = output.replace("'", '"')
-            res = json.loads(output)
-            print(res)
-            json.dump(res, output_file)
+        for exec_iter in range(n_executions):
+            with open(os.path.join(dest_folder, f"{prefix}_{exec_iter}.json"), 'w') as output_file:
+                script_to_execute = os.path.join(source_folder, filename)
+                proc = subprocess.Popen(
+                    [python_path, script_to_execute],
+                    stdout=subprocess.PIPE)
+                output = str(proc.stdout.read().decode('unicode_escape'))
+                output = output.replace("'", '"')
+                res = json.loads(output)
+                print(res)
+                json.dump(res, output_file)
 
 
 def convert_single_program(target_program, dest_folder, dest_format="pyquil", qconvert_path=None):
