@@ -25,13 +25,13 @@ gate_set:
   ry: 1
   rz: 1
   p: 1
-n_generated_programs: 12
+n_generated_programs: 500
 
 
 # EXECUTION
 strategy_sample_size_estimation: null
 fixed_sample_size: 8192
-n_executions: 10
+n_executions: 5
 
 # DETECTORS
 detectors:

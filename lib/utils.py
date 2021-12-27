@@ -190,7 +190,7 @@ def iterate_over_pairs_of_group(pairs):
 def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None):
     if qconvert_path is None:
         raise ValueError("qconvert_path must be specified")
-    files = os.listdir(source_folder)
+    files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
     qasm_files = [f for f in files if f.endswith(".qasm")]
     print(qasm_files)
     for filename in qasm_files:
@@ -204,13 +204,15 @@ def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None
 def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
     if python_path is None:
         raise ValueError("python_path must be specified")
-    files = os.listdir(source_folder)
+    files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
     py_files = [f for f in files if f.endswith(".py")]
     for filename in py_files:
         prefix = filename.split("_")[0]
         print(f"Executing: {filename}")
         for exec_iter in range(n_executions):
-            with open(os.path.join(dest_folder, f"{prefix}_{exec_iter}.json"), 'w') as output_file:
+            out_file_path = os.path.join(dest_folder, f"{prefix}_{exec_iter}.json")
+            print(f"Saving: {out_file_path}")
+            with open(out_file_path, 'w') as output_file:
                 script_to_execute = os.path.join(source_folder, filename)
                 proc = subprocess.Popen(
                     [python_path, script_to_execute],
@@ -218,7 +220,7 @@ def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
                 output = str(proc.stdout.read().decode('unicode_escape'))
                 output = output.replace("'", '"')
                 res = json.loads(output)
-                print(res)
+                # print(res)
                 json.dump(res, output_file)
 
 
