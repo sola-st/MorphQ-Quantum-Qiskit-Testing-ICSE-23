@@ -18,3 +18,5 @@ data/dd_v00/*
 notebooks/qconvert_tmp_cache/*
 *.log.txt
 node_converter/node_modules/*
+afl/AFL/*
+afl/output/*
