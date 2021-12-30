@@ -41,13 +41,17 @@ def get_folder(config, comparison_name, stage, compiler_name=None):
         config["experiment_folder"], comparison_name, stage, compiler_name)
 
 
-def prepare_folders(config: Dict[str, Any]) -> None:
+def prepare_folders(config: Dict[str, Any], benchmark_mode: bool) -> None:
     """Prepare the folders."""
     click.echo("Checking folder structure...")
     comparisons = config["comparisons"]
     experiment_folder = config["experiment_folder"]
     Path(experiment_folder).mkdir(parents=True, exist_ok=True)
     for comparison in comparisons:
+        if benchmark_mode and not comparison.get("is_benchmark", False):
+            print("Skipping folder creation: ", comparison["name"])
+            print("[Not part of the benchmark.]")
+            continue
         comparison_name = comparison["name"]
         compilers = comparison["compilers"]
         subfolder = os.path.join(experiment_folder, comparison_name)
@@ -64,12 +68,17 @@ def prepare_folders(config: Dict[str, Any]) -> None:
     click.echo("Folder structure checked and ready.")
 
 
-def generate_and_run_programs(config: Dict[str, Any]) -> None:
+def generate_and_run_programs(config: Dict[str, Any], benchmark_mode: bool) -> None:
     """Generate and run the programs."""
 
-    prepare_folders(config)
+    prepare_folders(config, benchmark_mode)
 
     for comparison in config["comparisons"]:
+
+        if benchmark_mode and not comparison.get("is_benchmark", False):
+            print("Skipping comparison: ", comparison["name"])
+            print("[Not part of the benchmark.]")
+            continue
 
         # GENERATE QASM PROGRAMS
 
@@ -95,6 +104,31 @@ def generate_and_run_programs(config: Dict[str, Any]) -> None:
                     circuit_id=str(i))
             except NoMoreProgramsAvailable:
                 break
+
+        # GENERATE GROUND TRUTH
+
+        if benchmark_mode and \
+                "expected_divergence" in comparison.keys():
+            print("Creating ground truth based on expected divergence:",
+                  comparison["name"])
+            # create the ground truth
+            ground_truth_folder = get_folder(
+                config, comparison["name"], "ground_truth")
+            record = {
+                "expected_divergence": comparison["expected_divergence"]}
+            # create ground truth
+            # based on the number of generated programs in the QASM folder
+            generated_qasms_filenames = [
+                f.replace(".qasm", "") for f in os.listdir(get_folder(
+                    config, comparison["name"], "original_programs"))
+                if f.endswith(".qasm")
+            ]
+            for i in generated_qasms_filenames:
+                # save json file with record
+                record["circuit_id"] = str(i)
+                record["benchmark_name"] = comparison["name"]
+                with open(os.path.join(ground_truth_folder, f"{i}.json"), "w") as f:
+                    json.dump(record, f)
 
         # CREATE COMPILER-SPECIFIC PROGRAMS (CIRC, QISKIT, PYQUIL)
 
@@ -129,7 +163,7 @@ def generate_and_run_programs(config: Dict[str, Any]) -> None:
                 n_executions=config["n_executions"])
 
 
-def detect_divergence(config: Dict[str, Any]) -> None:
+def detect_divergence(config: Dict[str, Any], benchmark_mode: bool) -> None:
     """Detect the divergence."""
 
     detectors = config["detectors"]
@@ -139,6 +173,11 @@ def detect_divergence(config: Dict[str, Any]) -> None:
         print("Running detector:", detector["name"])
         detector_object = eval(detector["detector_object"])()
         for comparison in config["comparisons"]:
+
+            if benchmark_mode and not comparison.get("is_benchmark", False):
+                print("Skipping detection: ", comparison["name"])
+                print("[Not part of the benchmark.]")
+                continue
 
             compiler_names = [
                 compiler["name"] for compiler in comparison["compilers"]]
@@ -207,7 +246,8 @@ def cli():
 
 @cli.command()
 @click.argument('config_file')
-def generate(config_file):
+@click.option('--benchmark', is_flag=True)
+def generate(config_file, benchmark):
     config = load_config_and_check(config_file, [
         "min_n_qubits",
         "max_n_qubits",
@@ -216,17 +256,18 @@ def generate(config_file):
         ])
 
     click.echo('Generate and Run Programs')
-    generate_and_run_programs(config)
+    generate_and_run_programs(config, benchmark)
 
 
 @cli.command()
 @click.argument('config_file')
-def detect(config_file):
+@click.option('--benchmark', is_flag=True)
+def detect(config_file, benchmark):
     config = load_config_and_check(config_file, [
         "detectors"
         ])
     click.echo('Detect Divergence')
-    detect_divergence(config)
+    detect_divergence(config, benchmark)
 
 
 if __name__ == '__main__':

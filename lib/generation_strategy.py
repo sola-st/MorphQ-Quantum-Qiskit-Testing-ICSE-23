@@ -219,9 +219,9 @@ class FakeCircuitGenerator(GenerationStrategy):
 class FamousCircuitGenerator(GenerationStrategy):
     """Generate a famous circuit."""
 
-    def __init__(self, out_folder: str, benchmark_name: str):
+    def __init__(self, out_folder: str, benchmark_name: str, famous_algos_folder: str):
         super().__init__(out_folder, benchmark_name)
-        famous_algos_folder = "../data/QASMBench/famous_algos"
+        # famous_algos_folder = "../data/QASMBench/famous_algos"
         # read all the file in the folder
         files = sorted(os.listdir(famous_algos_folder))
         file_contents_and_n_bits = []
@@ -229,7 +229,11 @@ class FamousCircuitGenerator(GenerationStrategy):
             with open(f"{famous_algos_folder}/{file}", "r") as f:
                 content = f.read()
                 f.close()
-            n_bits = int(file.split("_")[1].replace("n", "").replace(".qasm", ""))
+            # n_bits = int(file.split("_")[1].replace("n", "").replace(".qasm", ""))
+            n_bits = sum([
+                reg[2]
+                for reg in detect_registers(content) if reg[0] == 'qreg'
+            ])
             file_contents_and_n_bits.append((content, n_bits))
         self.famous_algos = file_contents_and_n_bits
         self.available_algos = len(self.famous_algos)
@@ -245,6 +249,18 @@ class FamousCircuitGenerator(GenerationStrategy):
             }
             return algo, metadata_dict
         raise NoMoreProgramsAvailable("No more famous algos available.")
+
+
+class QasmMidCircuitGenerator(FamousCircuitGenerator):
+
+    def __init__(self, out_folder: str, benchmark_name: str):
+        super().__init__(out_folder, benchmark_name, "../data/QASMBench/famous_algos")
+
+
+class TketCircuitGenerator(FamousCircuitGenerator):
+
+    def __init__(self, out_folder: str, benchmark_name: str):
+        super().__init__(out_folder, benchmark_name, "../data/tket_benchmarking/executable_algos")
 
 
 class FinalNotCircuitModifier(DerivationStrategy):

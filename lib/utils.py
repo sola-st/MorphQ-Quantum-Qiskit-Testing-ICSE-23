@@ -6,6 +6,8 @@ import subprocess
 from itertools import combinations
 import pandas as pd
 
+from json.decoder import JSONDecodeError
+
 
 def load_config_and_check(config_file: str, required_keys: List[str] = []):
     """Load the config file and check that it has the right keys."""
@@ -190,7 +192,10 @@ def iterate_over_pairs_of_group(pairs):
 def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None):
     if qconvert_path is None:
         raise ValueError("qconvert_path must be specified")
-    files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
+    try:
+        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
+    except ValueError:
+        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split(".")[0]))
     qasm_files = [f for f in files if f.endswith(".qasm")]
     print(qasm_files)
     for filename in qasm_files:
@@ -204,7 +209,10 @@ def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None
 def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
     if python_path is None:
         raise ValueError("python_path must be specified")
-    files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
+    try:
+        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
+    except ValueError:
+        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split(".")[0]))
     py_files = [f for f in files if f.endswith(".py")]
     for filename in py_files:
         prefix = filename.split("_")[0]
@@ -219,7 +227,11 @@ def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
                     stdout=subprocess.PIPE)
                 output = str(proc.stdout.read().decode('unicode_escape'))
                 output = output.replace("'", '"')
-                res = json.loads(output)
+                try:
+                    res = json.loads(output)
+                except JSONDecodeError as e:
+                    print("Execution Error:", e)
+                    res = {"0000000000000000": 8192}
                 # print(res)
                 json.dump(res, output_file)
 
