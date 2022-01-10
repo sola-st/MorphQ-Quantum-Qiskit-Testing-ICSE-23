@@ -1,4 +1,4 @@
-The original file was: `bb84_n8.qasm`.
+The original file was: `bb84_n8.qasm` from Tket Bench 1 (`experiment_v06.yaml`)from the publication arxiv-2003-10611.
 
 This is a problem which rises because the Cirq platform is not able to run the code given by the qconvert utilities.
 This happens due to repeated measurement. The Cirq circuit cannot use twice the same `key` for a measurement, such as `m00`.
