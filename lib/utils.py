@@ -4,6 +4,7 @@ import yaml
 from typing import List
 import subprocess
 from itertools import combinations
+from functools import reduce
 import pandas as pd
 
 from json.decoder import JSONDecodeError
@@ -24,6 +25,54 @@ def load_json(filename, folder):
     """
     with open(os.path.join(folder, filename), 'r') as f:
         return json.load(f)
+
+
+def load_multiple_json(program_id, folder):
+    """Read all the json files refering to a specific program.
+
+    Note that we assume that the files are named in the following way:
+    <program_id>_<execution_number>.json
+    """
+    filepath_executions = [
+        os.path.join(folder, f)
+        for f in os.listdir(folder)
+        if f.startswith(f"{program_id}_") and f.endswith('.json')
+    ]
+    return read_multiple_execution_as_one(filepath_executions)
+
+
+def join_two_executions(exec_a, exec_b):
+    return {
+        k: exec_a.get(k, 0) + exec_b.get(k, 0)
+        for k in set(exec_a) | set(exec_b)
+    }
+
+
+def read_multiple_execution_as_one(filepath_executions):
+    """
+    Join all the dictionary result in one.
+
+    x = {'both1': 1, 'both2': 2, 'only_x': 100}
+    y = {'both1': 10, 'both2': 20, 'only_y': 200}
+
+    print {k: x.get(k, 0) + y.get(k, 0) for k in set(x)}
+    print {k: x.get(k, 0) + y.get(k, 0) for k in set(x) & set(y)}
+    print {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
+
+    Results:
+
+        {'both2': 22, 'only_x': 100, 'both1': 11}
+        {'both2': 22, 'both1': 11}
+        {'only_y': 200, 'both2': 22, 'both1': 11, 'only_x': 100}
+    """
+    all_dicts = [
+        load_json(
+            filename=os.path.basename(filepath),
+            folder=os.path.dirname(filepath))
+        for filepath in filepath_executions
+    ]
+    return reduce(join_two_executions, all_dicts)
+
 
 
 def iterate_over(folder, filetype, parse_json=False):
