@@ -1,0 +1,68 @@
+# Qconvert and same number of shots = 8192 :
+# Cirq, Qiskit
+# but execute every program 5 times, so that we raise an alert only if the
+# majority of comparisons are significative different
+
+# derived from experiment v05, but programs with less atomic operations to be
+# able to debug / understand the algos. Also less qubits.
+
+# FOLDERS
+experiment_folder: ../data/experiment_v08/
+
+# GLOBAL
+
+min_n_qubits: 2
+max_n_qubits: 15
+min_n_ops: 5
+max_n_ops: 25
+random_seed: 42
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+
+
+# PROGRAM GENERATION
+program_id_pattern: "{{timestamp}}_{{qasm_hash}}_{{randint}}"
+gate_set:
+  cx: 3
+  rx: 1
+  ry: 1
+  rz: 1
+  p: 1
+n_generated_programs: 5000
+
+
+# EXECUTION
+strategy_sample_size_estimation: null
+fixed_sample_size: 8192
+n_executions: 5
+
+# DETECTORS
+detectors:
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
+
+
+comparisons:
+  - name: cross_platform
+    description: |
+      Sample A: random program x, executed on Qiskit.
+      Sample B: random program x, executed on Circ.
+    title: Qiskit vs Cirq
+    expected_divergence: false
+    generation_object: WeightedRandomCircuitGenerator
+    compilers:
+      - name: qiskit
+        shots_lookup: "shots = 1024"
+        shots_substitute: "shots = {injected_shot}"
+      - name: cirq
+        shots_lookup: "repetitions=1024"
+        shots_substitute: "repetitions={injected_shot}"
+#- name: pyquil
+#  shots_lookup: "shots = 1024"
+#  shots_substitute: "shots = {injected_shot}"
+
+
+

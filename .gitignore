@@ -15,6 +15,7 @@ data/experiment_v04/*
 data/experiment_v05/*
 data/experiment_v06/*
 data/experiment_v07/*
+data/experiment_v08/*
 data/circuit_image/*
 data/dd_v00/*
 notebooks/qconvert_tmp_cache/*
