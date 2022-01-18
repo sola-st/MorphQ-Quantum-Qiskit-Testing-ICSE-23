@@ -12,6 +12,7 @@ import matplotlib.patches as mpatches
 
 import os
 import pandas as pd
+from copy import deepcopy
 
 from utils import iterate_over, iterate_parallel
 
@@ -30,7 +31,7 @@ class Explorer(object):
 
     def focus_on_detector(self, detector_name):
         """Analyze only the specific detector data."""
-        self.df_backup_original = self.df_all
+        self.df_backup_original = deepcopy(self.df_all)
         self.detector_name = detector_name
         self.df_all = self.df_backup_original[
             self.df_backup_original["test"] == detector_name]
@@ -42,7 +43,11 @@ class Explorer(object):
         all_program_info = []
         for benchmark in benchmarks:
             print(f"BENCHMARK: {benchmark['name']} - PROGRAM INFO - reading ...  ")
-            folder = os.path.join(experiment_path, benchmark['name'], "original_programs")
+            compiler_names = list(sorted([
+                compiler['name']for compiler in benchmark['compilers']
+            ]))
+            folder = os.path.join(experiment_path, benchmark["name"], "programs", compiler_names[0])
+            # folder = os.path.join(experiment_path, benchmark['name'], "original_programs")
             subfolders = [
                 subfolder
                 for subfolder in os.listdir(folder)

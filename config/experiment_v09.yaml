@@ -1,0 +1,222 @@
+# Real algorithms with Qconvert and same number of shots = 8192 :
+# Cirq, Qiskit
+
+
+# We have 5 know setup
+# - same algo, same platform, two runs (Cirq)
+# - same algo, same platform, two runs (Qiskit)
+# - algo vs random string
+# - algo x vs algo y
+# - append final negation
+
+# Dataset of real programs
+# - Famous Algorithms from QASMBench Medium (only 11/17)
+# - TKet QASM benchmark programs (only those which were from the publication
+#   arxiv-2003-10611 (qasm file folder), those with less or equeal than 20 qubits
+#   with exactly one quantum register and one classical register and the
+#   size of the classical register is equal or bigger than the quantum. Then the
+#   quantum register is completely measured.)
+
+# Every platform executes the same programs multiple times so that all
+# combinations of two platform executions are used to create a more
+# reliable p-value. In that way only very discordant cases will be highlighted.
+
+# Here we care about the expected_divergence keyword.
+
+# !!! CHANGE FOLDER TO NOT OVERRIDE THE RESULTS
+
+# NB: Remember to launch the cross_platform_testing.py with --benchmark flag
+
+
+# FOLDERS
+experiment_folder: ../data/experiment_v09/
+
+# GLOBAL
+
+min_n_qubits: 2
+max_n_qubits: 20
+min_n_ops: 30
+max_n_ops: 200
+random_seed: 42
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+
+
+# PROGRAM GENERATION
+program_id_pattern: "{{timestamp}}_{{qasm_hash}}_{{randint}}"
+gate_set:
+  cx: 3
+  rx: 1
+  ry: 1
+  rz: 1
+  p: 1
+n_generated_programs: 100
+
+
+# EXECUTION
+strategy_sample_size_estimation: null
+fixed_sample_size: 8192
+n_executions: 1
+
+platform_dependent_settings:
+  - platform: qiskit
+    shots_lookup: "shots = 1024"
+    shots_substitute: "shots = {injected_shot}"
+  - platform: cirq
+    shots_lookup: "repetitions=1024"
+    shots_substitute: "repetitions={injected_shot}"
+
+
+# DETECTORS
+detectors:
+  #- name: ks
+  #  test_long_name: Kolmogorov–Smirnov Test
+  #  detector_object: KS_Detector
+  - name: energy
+    test_long_name: Energy Test
+    detector_object: Energy_Detector
+    parallel_execution: true
+    random_seed: 1234
+
+comparisons:
+  - name: cross_platform
+    description: |
+      Sample A: random program x, executed on Qiskit.
+      Sample B: random program x, executed on Circ.
+    title: Qiskit vs Cirq
+    generation_object: WeightedRandomCircuitGenerator
+    compilers:
+      - name: qiskit
+      - name: cirq
+  - name: qasm_bench_mid
+    description: |
+      Sample A: real program x, executed on Cirq.
+      Sample B: real program x, executed on Qiskit.
+    title: QasmBench Medium Size - Qiskit vs Cirq
+    expected_divergence: false
+    is_benchmark: true
+    master_slave_relationship: identical
+    generation_object: QasmMidCircuitGenerator
+    compilers:
+      - name: qiskit
+        execution_object: qconvert
+        platform: qiskit
+        benchmark_role: master
+      - name: cirq
+        execution_object: qconvert
+        platform: cirq
+        benchmark_role: slave
+  - name: tket_bench_1
+    description: |
+      Sample A: real program x, executed on Cirq.
+      Sample B: real program x, executed on Qiskit.
+    title: TKet Benchmark 1 - Qiskit vs Cirq
+    expected_divergence: false
+    is_benchmark: true
+    master_slave_relationship: identical
+    generation_object: TketCircuitGenerator
+    compilers:
+      - name: qiskit
+        execution_object: qconvert
+        platform: qiskit
+        benchmark_role: master
+      - name: cirq
+        execution_object: qconvert
+        platform: cirq
+        benchmark_role: slave
+  - name: across_runs_qiskit
+    description: |
+      Sample A: random program x, executed on Qiskit.
+      Sample B: random program x, executed on Qiskit (second time).
+    title: Random Program across two runs (Qiskit)
+    expected_divergence: false
+    is_benchmark: true
+    master_slave_relationship: identical
+    generation_object: WeightedRandomCircuitGenerator
+    compilers:
+      - name: qiskit_run_1
+        execution_object: qconvert
+        platform: qiskit
+        benchmark_role: master
+      - name: qiskit_run_2
+        execution_object: qconvert
+        platform: qiskit
+        benchmark_role: slave
+  - name: across_runs_cirq
+    description: |
+      Sample A: random program x, executed on Cirq.
+      Sample B: random program x, executed on Cirq (second time).
+    title: Random Program across two runs (Cirq)
+    expected_divergence: false
+    is_benchmark: true
+    master_slave_relationship: identical
+    generation_object: WeightedRandomCircuitGenerator
+    compilers:
+      - name: cirq_run_1
+        execution_object: qconvert
+        platform: cirq
+        benchmark_role: master
+      - name: cirq_run_2
+        execution_object: qconvert
+        platform: cirq
+        benchmark_role: slave
+  - name: program_vs_random
+    description: |
+      Sample A: random program, executed on Cirq.
+      Sample B: uniformly random bitsting output.
+    title: Real (Random) Program vs Uniform Random Bitstring
+    expected_divergence: true
+    is_benchmark: true
+    master_slave_relationship: independent
+    compilers:
+      - name: cirq
+        execution_object: qconvert
+        platform: cirq
+        generation_object: WeightedRandomCircuitGenerator
+        benchmark_role: master
+      - name: fake_random
+        generation_object: FakeCircuitGenerator
+        execution_object: UniformBitstringDistribution
+        benchmark_role: slave
+  - name: negation
+    description: |
+      Sample A: random program x, executed on Cirq.
+      Sample B: random program x + NOT chain, executed on Cirq.
+    title: Real (Random) Program vs Real (Random) Program + NOT Chain
+    expected_divergence: true
+    is_benchmark: true
+    master_slave_relationship: derive_slave_from_master
+    compilers:
+      - name: cirq
+        execution_object: qconvert
+        platform: cirq
+        generation_object: WeightedRandomCircuitGenerator
+        benchmark_role: master
+      - name: fake_random
+        generation_object: FinalNotCircuitModifier
+        execution_object: qconvert
+        platform: cirq
+        benchmark_role: slave
+  - name: program_x_vs_program_y
+    description: |
+      Sample A: random program x, executed on Cirq.
+      Sample B: random program y, executed on Cirq.
+    title: (Random) Program x vs (Random) Program y [on Cirq]
+    expected_divergence: true
+    is_benchmark: true
+    master_slave_relationship: independent
+    compilers:
+      - name: cirq_algo_x
+        execution_object: qconvert
+        platform: cirq
+        generation_object: WeightedRandomCircuitGenerator
+        benchmark_role: master
+        random_seed: 42
+      - name: cirq_algo_y
+        generation_object: WeightedRandomCircuitGenerator
+        execution_object: qconvert
+        platform: cirq
+        benchmark_role: slave
+        random_seed: 24

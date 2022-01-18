@@ -22,6 +22,9 @@ class UniformBitstringDistribution(Circuit):
     def draw(self):
         print(f"No real qasm. Execution results simulated with: {self.__class__.__name__}.")
 
+    def to_custom_string(self):
+        return f"{self.__class__.__name__}({self.n_qubits})"
+
     def random_qc_result(self, n_qubits, n_shots):
         """Create a random quantum circuit result."""
 

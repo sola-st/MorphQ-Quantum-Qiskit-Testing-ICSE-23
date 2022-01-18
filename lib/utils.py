@@ -159,9 +159,13 @@ def read_execution_folder(folder_with_execs, compiler_name):
     for filename in files:
         new_record = {}
         new_record["compiler_name"] = compiler_name
-        new_record["program_id"] = filename.split("_")[0]
-        new_record["exec_iteration"] = \
-            filename.split("_")[1].replace(".json", "")
+        if "_" in filename:
+            new_record["program_id"] = filename.split("_")[0]
+            new_record["exec_iteration"] = \
+                filename.split("_")[1].replace(".json", "")
+        else:
+            new_record["program_id"] = filename.split(".")[0]
+            new_record["exec_iteration"] = "0"
         new_record["filename"] = filename
         new_record["filepath"] = os.path.join(
             folder_with_execs, compiler_name, filename)
@@ -241,11 +245,11 @@ def iterate_over_pairs_of_group(pairs):
 def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None):
     if qconvert_path is None:
         raise ValueError("qconvert_path must be specified")
+    qasm_files = [f for f in os.listdir(source_folder) if f.endswith(".qasm")]
     try:
-        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
+        qasm_files = sorted(qasm_files, key=lambda e: int(e.split("_")[0]))
     except ValueError:
-        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split(".")[0]))
-    qasm_files = [f for f in files if f.endswith(".qasm")]
+        qasm_files = sorted(qasm_files, key=lambda e: int(e.split(".")[0]))
     print(qasm_files)
     for filename in qasm_files:
         src_filepath = os.path.join(source_folder, filename)
@@ -258,11 +262,11 @@ def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None
 def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
     if python_path is None:
         raise ValueError("python_path must be specified")
+    py_files = [f for f in os.listdir(source_folder) if f.endswith(".py")]
     try:
-        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split("_")[0]))
+        py_files = sorted(py_files, key=lambda e: int(e.split("_")[0]))
     except ValueError:
-        files = sorted(os.listdir(source_folder), key=lambda e: int(e.split(".")[0]))
-    py_files = [f for f in files if f.endswith(".py")]
+        py_files = sorted(py_files, key=lambda e: int(e.split(".")[0]))
     for filename in py_files:
         prefix = filename.split("_")[0]
         print(f"Executing: {filename}")
