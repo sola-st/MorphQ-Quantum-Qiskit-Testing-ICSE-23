@@ -19,6 +19,27 @@ from utils import iterate_over, iterate_parallel
 
 class Explorer(object):
 
+
+    # INITIALIZE OBJECT
+    def __init__(self, config):
+        benchmarks = [
+            comparison
+            for comparison in config["comparisons"]
+            if comparison.get("is_benchmark", False)
+        ]
+        self.load_all(config["experiment_folder"], benchmarks)
+
+        # derive the column label form the ground truth
+        self.df_ground_truth = self._create_label(self.df_ground_truth)
+        # derive the output size
+        self.df_execution_info = self._measure_output_size(self.df_execution_info)
+
+        self.df_all = pd.merge(self.df_detector, self.df_ground_truth, on=["circuit_id", "benchmark_name"])
+        self.df_all = pd.merge(self.df_all, self.df_program_info, on=["circuit_id", "benchmark_name"])
+        self.df_all = pd.merge(self.df_all, self.df_execution_info, on=["circuit_id", "benchmark_name"])
+        # measure coverage (relative output size)
+        self.df_all = self._measure_output_coverage(self.df_all)
+
     def load_all(self, experiment_path, benchmarks):
         # load program info data
         self.load_program_data(experiment_path, benchmarks)
@@ -138,26 +159,6 @@ class Explorer(object):
         ]).median().sort_values(by="p_value").reset_index()
         df_grouped.rename(columns={"comparison_name":"benchmark_name"}, inplace=True)
         self.df_detector = df_grouped
-
-    # INITIALIZE OBJECT
-    def __init__(self, config):
-        benchmarks = [
-            comparison
-            for comparison in config["comparisons"]
-            if comparison.get("is_benchmark", False)
-        ]
-        self.load_all(config["experiment_folder"], benchmarks)
-
-        # derive the column label form the ground truth
-        self.df_ground_truth = self._create_label(self.df_ground_truth)
-        # derive the output size
-        self.df_execution_info = self._measure_output_size(self.df_execution_info)
-
-        self.df_all = pd.merge(self.df_detector, self.df_ground_truth, on=["circuit_id", "benchmark_name"])
-        self.df_all = pd.merge(self.df_all, self.df_program_info, on=["circuit_id", "benchmark_name"])
-        self.df_all = pd.merge(self.df_all, self.df_execution_info, on=["circuit_id", "benchmark_name"])
-        # measure coverage (relative output size)
-        self.df_all = self._measure_output_coverage(self.df_all)
 
     # START SECTION: internal manipulation to enrich with new columns
 

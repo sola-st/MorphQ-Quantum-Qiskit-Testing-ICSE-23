@@ -54,6 +54,21 @@ class KS_Detector(Detector):
         return self.statistics, self.p_value
 
 
+
+class ChiSquare_Detector(Detector):
+
+    def __init__(self):
+        self.name = "Chi-Square Test"
+
+    def check(self, result_A, result_B, random_seed=None):
+        """Compare two distributions with Chi-Square Test"""
+        return 0, 0
+        #self.load_results(result_A, result_B)
+        #self.statistics, self.p_value = ks_2samp(self.samples_A, self.samples_B)
+        #return self.statistics, self.p_value
+
+
+
 class Energy_Detector(Detector):
 
     def __init__(self):
@@ -89,6 +104,11 @@ class Energy_Detector(Detector):
         dist_matrix = dist_matrix.to(torch.float32)
         # self.p_value = energy_test.pval(dist_matrix, n_permutations=1000)
         self.p_value = -1
+        cut_off = 0.001
+        if self.statistics < cut_off:
+            self.p_value = 1
+        else:
+            self.p_value = 10e-6
         if isinstance(self.p_value, torch.Tensor):
             self.p_value = self.p_value.item()
         if isinstance(self.statistics, torch.Tensor):

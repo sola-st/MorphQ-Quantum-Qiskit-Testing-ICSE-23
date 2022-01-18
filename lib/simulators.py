@@ -179,7 +179,7 @@ class CirqCircuit(Circuit):
 class QconvertCircuit(Circuit):
 
     def __init__(self, target_platform="qiskit", repetitions=1024):
-        super(QconvertCircuit, self).__init__(repetitions=1024)
+        super(QconvertCircuit, self).__init__(repetitions=repetitions)
         # load yaml file
         with open("../config/qconvert_settings.yaml", 'r') as yaml_file:
             config = yaml.load(yaml_file, Loader=yaml.FullLoader)
