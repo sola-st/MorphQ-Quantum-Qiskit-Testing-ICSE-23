@@ -89,13 +89,18 @@ class Inspector(object):
             self.p2_results, platform_name=self.platform_names[1],
             top_k=k, confidence_level=confidence_level)
 
-    def plot_histogram_together(self, top_perc=.25, figsize=(10, 6)):
+    def plot_histogram_together(self, top_perc=.25, max_solutions=50, figsize=(10, 6)):
         """Plot the histogram together for both platforms.
+
+        The histogram will contain the top_perc of the solutions or at max
+        a certain number of solutions (max_solution). Whatever is smaller.
 
         Note that the top_perc is the percentage of the top solutions to plot.
         """
         df = self.df_melted
         df = self._cap_top_perc(df, top_perc)
+        if len(df) > max_solutions:
+            df = df.iloc[:max_solutions]
         plt.figure(figsize=figsize)
         sns.barplot(x="string", hue="name", y="counter", data=df)
         # rotate labels 90
