@@ -18,7 +18,11 @@ data/experiment_v07/*
 data/experiment_v08/*
 data/experiment_v09/*
 data/experiment_v10/*
+
 data/circuit_image/*
+data/static_code_analysis/*
+
+
 data/dd_v00/*
 notebooks/qconvert_tmp_cache/*
 *.log.txt
