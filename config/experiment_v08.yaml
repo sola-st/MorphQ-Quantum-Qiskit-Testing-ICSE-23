@@ -6,6 +6,9 @@
 # derived from experiment v05, but programs with less atomic operations to be
 # able to debug / understand the algos. Also less qubits.
 
+# we use this programs to validate also the strength of energy test on unknown
+# programs
+
 # FOLDERS
 experiment_folder: ../data/experiment_v08/
 
@@ -40,10 +43,14 @@ n_executions: 5
 
 # DETECTORS
 detectors:
-  - name: ks
-    test_long_name: Kolmogorov–Smirnov Test
-    detector_object: KS_Detector
-
+  #- name: ks
+  #  test_long_name: Kolmogorov–Smirnov Test
+  #  detector_object: KS_Detector
+  - name: energy
+    test_long_name: Energy Test
+    detector_object: Energy_Detector
+    parallel_execution: true
+    random_seed: 4321
 
 comparisons:
   - name: cross_platform

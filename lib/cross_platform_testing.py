@@ -96,7 +96,11 @@ def get_generator_folder(role: str, comparison_config: Dict[str, Any], config: D
 def get_generator(role: str, comparison_config: Dict[str, Any], config: Dict[str, Any]):
     """Reconstruct and return the generator for master or slave."""
     lookup_compiler = get_compiler(role, comparison_config)
-    return eval(lookup_compiler['generation_object'])(
+    if 'generation_object' in lookup_compiler.keys():
+        generator_name = lookup_compiler['generation_object']
+    else:
+        generator_name = comparison_config['generation_object']
+    return eval(generator_name)(
         out_folder=get_generator_folder(role, comparison_config, config),
         benchmark_name=comparison_config["name"]
     )
@@ -235,7 +239,7 @@ def execute_single_compiler(compiler: Dict[str, Any], comparison_config: Dict[st
                 json.dump(result, execution_file)
 
 
-def generate_and_run_programs(config: Dict[str, Any], benchmark_mode: bool) -> None:
+def generate_and_run_programs(config: Dict[str, Any], benchmark_mode: bool=False) -> None:
     """Generate and run the programs."""
 
     prepare_folders(config, benchmark_mode)
@@ -252,9 +256,10 @@ def generate_and_run_programs(config: Dict[str, Any], benchmark_mode: bool) -> N
 
     for comparison in config["comparisons"]:
 
-        if benchmark_mode and not comparison.get("is_benchmark", False):
+        if comparison.get("is_benchmark", False) != benchmark_mode:
             print("Skipping comparison: ", comparison["name"])
-            print("[Not part of the benchmark.]")
+            if benchmark_mode:
+                print("[Not part of the benchmark.]")
             continue
 
         # GENERATE QASM PROGRAMS
@@ -338,7 +343,7 @@ def generate_and_run_programs(config: Dict[str, Any], benchmark_mode: bool) -> N
                     config=config)
 
 
-def detect_divergence(config: Dict[str, Any], benchmark_mode: bool) -> None:
+def detect_divergence(config: Dict[str, Any], benchmark_mode: bool = False) -> None:
     """Detect the divergence."""
 
     detectors = config["detectors"]
@@ -349,9 +354,10 @@ def detect_divergence(config: Dict[str, Any], benchmark_mode: bool) -> None:
         detector_object = eval(detector["detector_object"])()
         for comparison in config["comparisons"]:
 
-            if benchmark_mode and not comparison.get("is_benchmark", False):
+            if comparison.get("is_benchmark", False) != benchmark_mode:
                 print("Skipping detection: ", comparison["name"])
-                print("[Not part of the benchmark.]")
+                if benchmark_mode:
+                    print("[Not part of the benchmark.]")
                 continue
 
             compiler_names = [

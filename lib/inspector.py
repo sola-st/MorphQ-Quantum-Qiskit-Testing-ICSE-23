@@ -4,7 +4,6 @@ This file inspects a specific divergent comparison to find the root cause.
 
 
 # import libraries
-from pydoc import plain
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,6 +15,28 @@ from typing import List, Tuple, Dict, Any
 import os
 import pandas as pd
 from utils import load_json, load_multiple_json
+
+
+def convert_dict_to_df(res_a, res_b, platform_a, platform_b):
+    """Convert two dictionary of execturions in a dataframe.
+
+    Note that each record fives info about:
+    - platform (column name: "name")
+    - output string (column name: "string")
+    - frequency (column name: "counter")
+    """
+    p1_strings, p1_counters = list(zip(*list(res_a.items())))
+    p1_names = [f"{platform_a}"
+                for _ in range(len(p1_strings))]
+    p2_strings, p2_counters = list(zip(*list(res_b.items())))
+    p2_names = [f"{platform_b}"
+                for _ in range(len(p2_strings))]
+    all_strings = p1_strings + p2_strings
+    all_counters = p1_counters + p2_counters
+    all_names = p1_names + p2_names
+    df = pd.DataFrame(zip(all_strings, all_counters, all_names), columns=["string", "counter", "name"])
+    df = df.sort_values(by=["counter"], ascending=False)
+    return df
 
 
 class Inspector(object):
@@ -48,18 +69,12 @@ class Inspector(object):
         self._create_dataframes()
 
     def _create_dataframes(self):
-        p1_strings, p1_counters = list(zip(*list(self.p1_results.items())))
-        p1_names = [f"{self.platform_names[0]}"
-                    for _ in range(len(p1_strings))]
-        p2_strings, p2_counters = list(zip(*list(self.p2_results.items())))
-        p2_names = [f"{self.platform_names[1]}"
-                    for _ in range(len(p2_strings))]
-        all_strings = p1_strings + p2_strings
-        all_counters = p1_counters + p2_counters
-        all_names = p1_names + p2_names
-
-        df = pd.DataFrame(zip(all_strings, all_counters, all_names), columns=["string", "counter", "name"])
-        df = df.sort_values(by=["counter"], ascending=False)
+        df = convert_dict_to_df(
+            res_a=self.p1_results,
+            res_b=self.p2_results,
+            platform_a=self.platform_names[0],
+            platform_b=self.platform_names[1]
+        )
         self.df_melted = df
         self.df_p1 = df[df["name"] == f"{self.platform_names[0]}"]
         self.df_p2 = df[df["name"] == f"{self.platform_names[1]}"]
