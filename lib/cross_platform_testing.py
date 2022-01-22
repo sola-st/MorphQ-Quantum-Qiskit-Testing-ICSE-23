@@ -24,7 +24,7 @@ from utils import convert
 from utils import run_programs
 from utils import iterate_over_program_ids
 from utils import iterate_over_pairs_of_group
-
+import time
 
 
 def replace_in_all_files(folder, detect_string, substitute_string):
@@ -398,10 +398,14 @@ def detect_divergence(config: Dict[str, Any], benchmark_mode: bool = False) -> N
                     }
 
                     try:
+                        start_time = time.time()
                         statistic, p_value = detector_object.check(res_A, res_B, random_seed)
+                        pair[f"time"] = time.time() - start_time
+                        pair[f"statistic"] = statistic
                         pair[f"statistic"] = statistic
                         pair[f"p_value"] = p_value
                     except Exception as e:
+                        pair[f"time"] = -1
                         prediction[f"statistic"] = 0
                         pair[f"p_value"] = -1
                         pair["exception"] = str(e)

@@ -33,7 +33,7 @@ gate_set:
   ry: 1
   rz: 1
   p: 1
-n_generated_programs: 10
+n_generated_programs: 10000
 
 
 # EXECUTION
