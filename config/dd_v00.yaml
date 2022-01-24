@@ -1,7 +1,7 @@
 # Run the Delta Debugging algorithm on a specific QASM file
 
 # FILE UNDER TEST
-start_qasm_file: ../data/experiment_v03/cross_platform/original_programs/32.qasm
+start_qasm_file: ../data/experiment_v03/cross_platform/original_programs/37.qasm
 
 
 # EXECUTABLE PATH
