@@ -1,0 +1,88 @@
+# Real algorithms with Qconvert and same number of shots = 8192 :
+# Cirq, Qiskit
+
+# Given the good performance of Energy test on the benchmark dataset
+# Let's try it on a new setup.
+
+# rerun since experiment v11 might have lead to different results because of
+# overloading of the system
+
+# !!! CHANGE FOLDER TO NOT OVERRIDE THE RESULTS
+
+# NB: FOR BENCHMARK: launch the cross_platform_testing.py with --benchmark flag
+
+
+# FOLDERS
+experiment_folder: ../data/experiment_v12/
+
+# GLOBAL
+
+min_n_qubits: 2
+max_n_qubits: 20
+min_n_ops: 30
+max_n_ops: 200
+random_seed: 123
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+
+
+# PROGRAM GENERATION
+program_id_pattern: "{{timestamp}}_{{qasm_hash}}_{{randint}}"
+gate_set:
+  cx: 3
+  rx: 1
+  ry: 1
+  rz: 1
+  p: 1
+n_generated_programs: 10000
+
+
+# EXECUTION
+strategy_sample_size_estimation: null
+fixed_sample_size: 8192
+n_executions: 1
+
+platform_dependent_settings:
+  - platform: qiskit
+    shots_lookup: "shots = 1024"
+    shots_substitute: "shots = {injected_shot}"
+  - platform: cirq
+    shots_lookup: "repetitions=1024"
+    shots_substitute: "repetitions={injected_shot}"
+
+
+# DETECTORS
+detectors:
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
+  - name: fast_energy
+    test_long_name: Faster Energy Test
+    detector_object: Faster_Energy_Detector
+    parallel_execution: true
+    random_seed: 4321
+  #- name: energy
+  #  test_long_name: Energy Test
+  #  detector_object: Energy_Detector
+  #  parallel_execution: true
+  #  random_seed: 4321
+
+comparisons:
+  - name: cross_platform
+    description: |
+      Sample A: random program x, executed on Qiskit.
+      Sample B: random program x, executed on Circ.
+    title: Qiskit vs Cirq
+    generation_object: WeightedRandomCircuitGenerator
+    master_slave_relationship: identical
+    compilers:
+      - name: qiskit
+        execution_object: qconvert
+        platform: qiskit
+        benchmark_role: master
+      - name: cirq
+        execution_object: qconvert
+        platform: cirq
+        benchmark_role: slave

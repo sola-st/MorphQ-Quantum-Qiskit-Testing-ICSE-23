@@ -60,11 +60,11 @@ detectors:
     detector_object: Faster_Energy_Detector
     parallel_execution: true
     random_seed: 4321
-  - name: energy
-    test_long_name: Energy Test
-    detector_object: Energy_Detector
-    parallel_execution: true
-    random_seed: 4321
+  #- name: energy
+  #  test_long_name: Energy Test
+  #  detector_object: Energy_Detector
+  #  parallel_execution: true
+  #  random_seed: 4321
 
 comparisons:
   - name: cross_platform
