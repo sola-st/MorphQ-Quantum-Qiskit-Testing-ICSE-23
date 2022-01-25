@@ -9,6 +9,9 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn import metrics
 
 import os
 import pandas as pd
@@ -197,8 +200,27 @@ class Explorer(object):
             axis=1
         )
 
-    def plot_benchmark_categories(self):
+    def plot_ROC_curve(self, column_parameter='statistic', title=None, low_means_normal=True):
+        """Plot ROC-AUC curve on a specific parameter."""
+        df = self.df_all.copy()
+        df = df[["statistic", "expected_divergence", "p_value"]]
+        if low_means_normal:
+            pred = df[column_parameter]
+        else:
+            pred = -df[column_parameter]
+        y = df["expected_divergence"].astype(int)
+        fpr, tpr, thresholds = metrics.roc_curve(y, pred)
+        roc_auc = metrics.auc(fpr, tpr)
+        extra_params = {}
+        if title is not None:
+            extra_params = {"estimator_name": title}
+        display = metrics.RocCurveDisplay(
+            fpr=fpr, tpr=tpr, roc_auc=roc_auc, **extra_params)
+        display.plot()
+        plt.show()
 
+    def plot_benchmark_categories(self):
+        """Plot percentage of correct predictions for each benchmark category."""
         df = self.df_all
 
         # set the figure size
