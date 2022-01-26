@@ -3,6 +3,8 @@
 # EXECUTABLE PATH
 qconvert_path: ../node_converter/qconvert-js/cli.js
 python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+mode: tket  # tket | qconvert
+
 
 # EXECUTION
 strategy_sample_size_estimation: null

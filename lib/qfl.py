@@ -24,17 +24,21 @@ from utils import run_single_program_in_memory
 
 from generation_strategy import WeightedRandomCircuitGenerator
 from detectors import *
+from tket_interface import convert_and_execute_qiskit_and_cirq_via_tket
+
 
 # LEVEL - EXTRA
 
 def estimate_n_samples_needed(
+        config: Dict[str, Any],
         n_measured_qubits: int = 1,
         user_defined_threshold: float = 0.5,
         confidence_level: float = 1.0,
         platform: str = None,
         backend: str = None):
     """Estimate the number of samples needed for a reliable comparison."""
-    return 8192
+    # based on the key strategy_sample_size_estimation
+    return config["fixed_sample_size"]
 
 
 def dump_metadata(
@@ -50,14 +54,13 @@ def dump_metadata(
 
 
 def dump_all_metadata(
-        experiment_folder, program_id, qasm, plat_a, plat_b, exec, div):
+        experiment_folder, program_id, qasm, exec, div, **kwargs):
     """Dump all metadata."""
     all_metadata = {
         "program_id": program_id,
         "qasm": qasm,
-        "platform_A": plat_a,
-        "platform_B": plat_b,
-        "divergence": div
+        "divergence": div,
+        **kwargs
     }
     dump_metadata(
         all_metadata,
@@ -142,28 +145,52 @@ def fuzz_qasm_program(
     }
     return program_id, metadata
 
+
+def execute_qasm_program(
+        config:  Dict[str, Any],
+        program_id: str,
+        metadata_qasm: Dict[str, Any]):
+    """Execute the QASM program."""
+    if config["mode"] == "qconvert":
+        metadata_A, metadata_B = translate_to_platform_code(
+            config, program_id, metadata_qasm)
+        exec_metadata = execute_programs(
+            config, program_id, metadata_qasm, metadata_A, metadata_B)
+    elif config["mode"] == "tket":
+        results = convert_and_execute_qiskit_and_cirq_via_tket(
+            qasm_path=metadata_qasm["qasm_filepath"],
+            shots=estimate_n_samples_needed(config)
+        )
+        exec_metadata = {
+            "res_A": results["qiskit"],
+            "platform_A": "qiskit",
+            "res_B": results["cirq"],
+            "platform_B": "cirq",
+            "profile_output": results["profile_output"],
+            "profile_function_calls": results["profile_function_calls"],
+            "profile_time": results["profile_time"]
+        }
+    return exec_metadata
+
+
 # LEVEL 2:
 
 
 def loop(config):
     """Start fuzzing loop."""
-    for i in range(5):
-        print(f"Tick {i}")
+    while True:
         program_id, metadata_qasm = fuzz_qasm_program(
             experiment_folder=config["experiment_folder"],
             config_generation=config["generation_strategy"])
-        print(f"Program {program_id}")
-        metadata_A, metadata_B = translate_to_platform_code(
+        exec_metadata = execute_qasm_program(
             config, program_id, metadata_qasm)
-        exec_metadata = execute_programs(
-            config, program_id, metadata_qasm, metadata_A, metadata_B)
         div_metadata = detect_divergence(exec_metadata, detectors=config["detectors"])
         dump_all_metadata(
             experiment_folder=config["experiment_folder"],
             program_id=program_id, qasm=metadata_qasm,
-            plat_a=metadata_A, plat_b=metadata_B,
-            exec=exec_metadata, div=div_metadata)
-        print(f"Tock {i}")
+            exec=exec_metadata, div=div_metadata,
+            platform_names=[p["name"] for p in config["platforms"]],
+            shots=estimate_n_samples_needed(config))
 
 
 # LEVEL 1:
