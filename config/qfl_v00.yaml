@@ -1,0 +1,73 @@
+# Run the Quantum Fuzzy Lop on a file
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+
+# EXECUTION
+strategy_sample_size_estimation: null
+fixed_sample_size: 8192
+
+# DETECTORS
+detectors:
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
+
+# GENERATION STRATEGY
+generation_strategy:
+  name: Random
+  generator_object: WeightedRandomCircuitGenerator
+  random_seed: 42
+  min_n_qubits: 2
+  max_n_qubits: 20
+  min_n_ops: 30
+  max_n_ops: 200
+  gate_set:
+    cx: 3
+    rx: 1
+    ry: 1
+    rz: 1
+    p: 1
+
+
+
+
+# PLATFORMS
+platforms:
+  - name: qiskit
+    format: qiskit
+  - name: cirq
+    format: cirq
+
+# FOLDERS
+experiment_folder: ../data/qfl_v00/
+
+# SUBFOLDER STRUCTURE
+folder_structure:
+  confirmed_divergence:
+    metadata: null
+    qasm: null
+    qiskit: null
+    cirq: null
+  # hangs: null
+  # crashes: null
+  # stats: null
+  programs:
+    metadata: null
+    qasm: null
+    qiskit: null
+    cirq: null
+
+
+
+# BUDGET
+budget_time: null  # SECONDS: null for continuous running
+
+
+# DEBUGGER
+max_runs_per_suspect_bug: 10
+max_seconds_per_suspect_bug: 120
+
+
+

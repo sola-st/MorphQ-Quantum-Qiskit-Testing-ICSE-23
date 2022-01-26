@@ -1,11 +1,14 @@
 import os
 import json
 import yaml
-from typing import List
+from typing import List, Dict, Tuple, Any
 import subprocess
+from subprocess import DEVNULL, STDOUT, check_call
+import multiprocessing
 from itertools import combinations
 from functools import reduce
 import pandas as pd
+import pathlib
 
 from json.decoder import JSONDecodeError
 
@@ -72,7 +75,6 @@ def read_multiple_execution_as_one(filepath_executions):
         for filepath in filepath_executions
     ]
     return reduce(join_two_executions, all_dicts)
-
 
 
 def iterate_over(folder, filetype, parse_json=False):
@@ -149,6 +151,50 @@ def iterate_parallel_n(folders, filetype, parse_json=False):
                 result_tuple.append(file_content)
             yield result_tuple
 
+
+def create_folder_structure(parent_folder: str, structure: Dict[str, Any]):
+    """Create the folder as given by the dictionary.
+    Note that the keys are the name of the folders and the values are the
+    structures of the respecfive subfolder.
+    e.g.
+    structure = {
+        "root": {
+            "a": None,
+            "b": None,
+            "c": {
+                "c_2": None,
+                "c_3": None
+            }
+        }
+    }
+    """
+    for folder_name, sub_folder_structure in structure.items():
+        folder_path = os.path.join(parent_folder, folder_name)
+        pathlib.Path(folder_path).mkdir(parents=True, exist_ok=True)
+        if sub_folder_structure is not None:
+            create_folder_structure(folder_path, sub_folder_structure)
+
+
+# TIMEOUT HANDLING
+
+def break_function_with_timeout(
+        routine: callable = None,
+        seconds_to_wait: int = None,
+        message: str = "Nothing to add.",
+        args: List[Any] = None):
+    """Break the function with timeout."""
+    routine
+    p = multiprocessing.Process(
+        target=routine, name=routine.__name__, args=args)
+    p.start()
+    p.join(seconds_to_wait)
+    # If thread is active
+    if p.is_alive():
+        print(f"Timeout over! Killing function: '{routine.__name__}'... " +
+              message)
+        # Terminate foo
+        p.terminate()
+        p.join()
 
 # COMBINATIONS OF COMPARISONS
 
@@ -296,21 +342,29 @@ def convert_single_program(target_program, dest_folder, dest_format="pyquil", qc
     dest_filepath = os.path.join(dest_folder, filename.replace(".qasm", ".py"))
     string_to_execute = f"{qconvert_path} -h -s qasm -d {dest_format} -i {target_program} -o {dest_filepath}"
     # print(string_to_execute)
-    os.system(string_to_execute)
+    check_call(string_to_execute.split(), stdout=DEVNULL, stderr=STDOUT)
+    # os.system(string_to_execute)
     return dest_filepath
 
 
-def run_single_program(target_file, dest_folder, python_path=None):
+def run_single_program_in_memory(target_file, python_path=None, shots=8192):
+    """Run the script and parse the output as a dictionary."""
+    proc = subprocess.Popen(
+        [python_path, target_file],
+        stdout=subprocess.PIPE)
+    output = str(proc.stdout.read().decode('unicode_escape'))
+    output = output.replace("'", '"')
+    res = json.loads(output)
+    return res
+
+
+def run_single_program(target_file, dest_folder, python_path=None, shots=8192):
     if python_path is None:
         raise ValueError("python_path must be specified")
     filename = os.path.basename(target_file).replace(".py", "")
     with open(os.path.join(dest_folder, filename + ".json"), 'w') as output_file:
-        proc = subprocess.Popen(
-            [python_path, target_file],
-            stdout=subprocess.PIPE)
-        output = str(proc.stdout.read().decode('unicode_escape'))
-        output = output.replace("'", '"')
-        res = json.loads(output)
-        #print(res)
+        res = run_single_program_in_memory(
+            target_file=target_file, python_path=python_path)
+        # print(res)
         json.dump(res, output_file)
     return res
