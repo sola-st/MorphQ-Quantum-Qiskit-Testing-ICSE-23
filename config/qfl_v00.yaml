@@ -60,6 +60,12 @@ folder_structure:
     qasm: null
     qiskit: null
     cirq: null
+  debug:
+    metadata: null
+    qasm: null
+    qiskit: null
+    cirq: null
+
 
 
 
@@ -70,6 +76,8 @@ budget_time: null  # SECONDS: null for continuous running
 # DEBUGGER
 max_runs_per_suspect_bug: 10
 max_seconds_per_suspect_bug: 120
+update_db_every_n_programs: 1
 
+primary_detector_for_debug: ks
 
 

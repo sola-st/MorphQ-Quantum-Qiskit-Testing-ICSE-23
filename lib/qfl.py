@@ -54,7 +54,7 @@ def dump_metadata(
 
 
 def dump_all_metadata(
-        experiment_folder, program_id, qasm, exec, div, **kwargs):
+        out_folder, program_id, qasm, exec, div, **kwargs):
     """Dump all metadata."""
     all_metadata = {
         "program_id": program_id,
@@ -64,11 +64,11 @@ def dump_all_metadata(
     }
     dump_metadata(
         all_metadata,
-        join(experiment_folder, "programs", "metadata", f"{program_id}.json"),
+        join(out_folder, f"{program_id}.json"),
         to_indent=True)
     dump_metadata(
         exec,
-        join(experiment_folder, "programs", "metadata", f"{program_id}_exec.json"))
+        join(out_folder, f"{program_id}_exec.json"))
 
 
 # LEVEL 3
@@ -186,7 +186,7 @@ def loop(config):
             config, program_id, metadata_qasm)
         div_metadata = detect_divergence(exec_metadata, detectors=config["detectors"])
         dump_all_metadata(
-            experiment_folder=config["experiment_folder"],
+            out_folder=join(config["experiment_folder"], "programs", "metadata"),
             program_id=program_id, qasm=metadata_qasm,
             exec=exec_metadata, div=div_metadata,
             platform_names=[p["name"] for p in config["platforms"]],
@@ -220,13 +220,6 @@ def start_loop(
         loop(config)
 
 
-def debug_divergent_cases(
-        max_runs_per_suspect_bug: int = 10,
-        max_seconds_per_suspect_bug: int = 120):
-    """Debug divergent cases."""
-    pass
-
-
 # LEVEL 0:
 
 
@@ -239,10 +232,6 @@ def qml(config_file):
         experiment_folder=config["experiment_folder"],
         folder_structure=config["folder_structure"])
     start_loop(config, budget_time=config['budget_time'])
-    debug_divergent_cases(
-        max_runs_per_suspect_bug=config['max_runs_per_suspect_bug'],
-        max_seconds_per_suspect_bug=config['max_seconds_per_suspect_bug'],
-    )
 
 
 if __name__ == '__main__':
