@@ -22,6 +22,7 @@ data/experiment_v11/*
 data/experiment_v12/*
 data/qfl_v00/*
 data/qfl_v01/*
+data/qfl_v02/*
 
 data/circuit_image/*
 data/static_code_analysis/*

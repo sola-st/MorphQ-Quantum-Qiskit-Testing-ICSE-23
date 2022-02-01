@@ -31,19 +31,25 @@ from generation_strategy import WeightedRandomCircuitGenerator
 from detectors import *
 from tket_interface import convert_and_execute_qiskit_and_cirq_via_tket
 
+from math import sqrt
+
 
 # LEVEL - EXTRA
 
 def estimate_n_samples_needed(
         config: Dict[str, Any],
         n_measured_qubits: int = 1,
-        user_defined_threshold: float = 0.5,
-        confidence_level: float = 1.0,
         platform: str = None,
         backend: str = None):
     """Estimate the number of samples needed for a reliable comparison."""
     # based on the key strategy_sample_size_estimation
-    return config["fixed_sample_size"]
+    if config["strategy_sample_size_estimation"] is None:
+        return config["fixed_sample_size"]
+    elif config["strategy_sample_size_estimation"] == "qdiff":
+        user_defined_threshold = config["qdiff_user_defined_threshold"]
+        confidence_level = config["qdiff_confidence_level"]
+        n_quantum_states = 2**n_measured_qubits
+        return int((1 / sqrt(1 - confidence_level)) * sqrt(n_quantum_states) * (user_defined_threshold)**(-2))
 
 
 def dump_metadata(
@@ -197,7 +203,8 @@ def execute_qasm_program(
     elif config["mode"] == "tket":
         results = convert_and_execute_qiskit_and_cirq_via_tket(
             qasm_path=metadata_qasm["qasm_filepath"],
-            shots=estimate_n_samples_needed(config)
+            shots=estimate_n_samples_needed(
+                config, n_measured_qubits=metadata_qasm["n_qubits"])
         )
         exec_metadata = {
             "res_A": results["qiskit"],
@@ -228,7 +235,8 @@ def loop(config):
             program_id=program_id, qasm=metadata_qasm,
             exec=exec_metadata, div=div_metadata,
             platform_names=[p["name"] for p in config["platforms"]],
-            shots=estimate_n_samples_needed(config))
+            shots=estimate_n_samples_needed(
+                config, n_measured_qubits=metadata_qasm["n_qubits"]))
         con = get_database_connection(config, "qfl.db")
         update_database(con, table_name="QFLDATA", record=all_metadata)
         scan_for_divergence(config, method='holm')
