@@ -12,6 +12,9 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import metrics
+from statsmodels.distributions.empirical_distribution import ECDF
+from scipy.interpolate import splrep, splev
+from scipy.ndimage import gaussian_filter1d
 
 import os
 import pandas as pd
@@ -20,8 +23,8 @@ from copy import deepcopy
 from utils import iterate_over, iterate_parallel
 
 
-class Explorer(object):
 
+class Explorer(object):
 
     # INITIALIZE OBJECT
     def __init__(self, config):
@@ -42,6 +45,9 @@ class Explorer(object):
         self.df_all = pd.merge(self.df_all, self.df_execution_info, on=["circuit_id", "benchmark_name"])
         # measure coverage (relative output size)
         self.df_all = self._measure_output_coverage(self.df_all)
+        self.append_random()
+        self.df_backup_original = deepcopy(self.df_all)
+        self.detector_name = None
 
     def load_all(self, experiment_path, benchmarks):
         # load program info data
@@ -53,20 +59,45 @@ class Explorer(object):
         # load ALL detectors data
         self.load_detection_data(experiment_path, benchmarks)
 
+    def append_random(self):
+        """Create a dummy test with random p-values."""
+        np.random.seed(42)
+        df_first_test = self.df_all[
+            self.df_all["test"] == self.df_all["test"].iloc[0]]
+        df = pd.DataFrame.from_records(
+            [{"test": "random",
+              "p_value": np.random.uniform(0, 1),
+              "statistic": np.random.uniform(0, 1),
+              "label": r["label"],
+              "benchmark_name": r["benchmark_name"],
+              "expected_divergence": r["expected_divergence"]}
+             for r in df_first_test.to_dict(orient="records")])
+        self.df_all = self.df_all.append(df)
+
     def focus_on_detector(self, detector_name):
         """Analyze only the specific detector data."""
-        self.df_backup_original = deepcopy(self.df_all)
+        self.reset()
         self.detector_name = detector_name
-        self.df_all = self.df_backup_original[
-            self.df_backup_original["test"] == detector_name]
+        self.df_all = self.df_all[self.df_all["test"] == detector_name]
+
+    def reset(self):
+        """Restore the initial state after file loading. """
+        self.df_all = deepcopy(self.df_backup_original)
+        self.detector_name = None
+
+    def reset_test_level(self, detector_name):
+        """Restore the initial state after file loading and load the test. """
+        self.df_all = deepcopy(self.df_backup_original)
+        self.focus_on_detector(detector_name)
 
     # DATA LOADING - READ FOLDERS AND CREATE PANDAS DATAFRAMES
 
     def load_program_data(self, experiment_path, benchmarks):
         """Load the program data for the given benchmarks."""
         all_program_info = []
+        print("--- PROGRAM INFO ---")
         for benchmark in benchmarks:
-            print(f"BENCHMARK: {benchmark['name']} - PROGRAM INFO - reading ...  ")
+            print(f"- BENCHMARK: {benchmark['name']} ...  ")
             compiler_names = list(sorted([
                 compiler['name']for compiler in benchmark['compilers']
             ]))
@@ -97,8 +128,9 @@ class Explorer(object):
     def load_execution_data(self, experiment_path, benchmarks):
         """Load the execution data for the given benchmarks."""
         execution_info = []
+        print("--- EXECUTION INFO ---")
         for benchmark in benchmarks:
-            print(f"BENCHMARK: {benchmark['name']} - EXECUTION INFO - reading ...  ")
+            print(f"- BENCHMARK: {benchmark['name']} ...  ")
             compiler_names = list(sorted([
                 compiler['name']for compiler in benchmark['compilers']
             ]))
@@ -124,8 +156,9 @@ class Explorer(object):
     def load_ground_truth_data(self, experiment_path, benchmarks):
         """Load the ground truth data for the given benchmarks."""
         ground_truth = []
+        print("--- GROUND TRUTH ---")
         for benchmark in benchmarks:
-            print(f"BENCHMARK: {benchmark['name']} - GROUND TRUTH - reading ...  ")
+            print(f"- BENCHMARK: {benchmark['name']}) ...  ")
             ground_truth_folder = os.path.join(experiment_path, benchmark["name"], "ground_truth")
             _, records_ground_truth = zip(*list(
                 iterate_over(ground_truth_folder, ".json", parse_json=True)))
@@ -135,7 +168,7 @@ class Explorer(object):
 
     def load_detection_data(self, experiment_path, benchmarks):
         detector_data = []
-
+        print("--- DETECTOR DATA ---")
         for benchmark in benchmarks:
             prediction_folder = os.path.join(
                 experiment_path, benchmark["name"], "predictions")
@@ -145,10 +178,10 @@ class Explorer(object):
                 if os.path.isdir(os.path.join(prediction_folder, subfolder))
             ]
             for detector_folder in detector_specific_subfolders:
-                print(f"BENCHMARK: {benchmark['name']} - DETECTOR: {detector_folder} - reading ...  ")
+                print(f" - BENCHMARK: {benchmark['name']} - DETECTOR: {detector_folder}.  ")
 
                 for filename, detector_res in iterate_over(detector_folder, filetype=".json", parse_json=True):
-                    print(f"Reading: {filename}")
+                    # print(f"Reading: {filename}")
                     # remove the comparison
                     pairs = detector_res.pop('comparisons', None)
 
@@ -190,41 +223,55 @@ class Explorer(object):
 
      # END SECTION
 
-    def plot_ROC(self, prediction_column="p_value"):
-        RocCurveDisplay.from_predictions(self.df_all["label"], self.df_all[prediction_column])
+    def plot_ROC(self, prediction_column="p_value", only_test: str = None,
+                 low_reject: bool = True, ax=None, title: str = ""):
+        self.reset()
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(5, 5))
+        if only_test is not None:
+            self.focus_on_detector(detector_name=only_test)
+            prediction_values = -1 * self.df_all[prediction_column] \
+                if low_reject else self.df_all[prediction_column]
+            y = self.df_all["label"].astype(int)
+            fpr, tpr, thresholds = metrics.roc_curve(y, prediction_values)
+            roc_auc = metrics.auc(fpr, tpr)
+            extra_params = {}
+            if only_test is not None:
+                extra_params = {"estimator_name": only_test}
+            display = metrics.RocCurveDisplay(
+                fpr=fpr, tpr=tpr, roc_auc=roc_auc, **extra_params)
+            display.plot(ax=ax)
+            ax.set_title(title)
+        else:
+            for test_name in self.df_all["test"].unique():
+                self.plot_ROC(prediction_column=prediction_column,
+                              only_test=test_name, low_reject=low_reject, ax=ax,
+                              title=title)
 
-    def classify_based_on_pvalue(self, treshold=0.05):
-        self.df_all["prediction_divergence"] = self.df_all["p_value"].apply(lambda e: e < treshold)
+    def classify_based_on_pvalue(self, threshold=0.05):
+        self.classify_based_on(col_name="p_value", threshold=threshold, reject_if_low=True)
+
+    def classify_based_on(self, col_name: str = "p_value", threshold=0.05, reject_if_low=True):
+        fn_direction_of_comparison = lambda x: x < threshold if reject_if_low else x > threshold
+        self.df_all["prediction_divergence"] = self.df_all[col_name].apply(fn_direction_of_comparison)
         self.df_all["correct_prediction"] = self.df_all.apply(
             lambda row: row["prediction_divergence"] == row["expected_divergence"],
             axis=1
         )
 
-    def plot_ROC_curve(self, column_parameter='statistic', title=None, low_means_normal=True):
-        """Plot ROC-AUC curve on a specific parameter."""
-        df = self.df_all.copy()
-        df = df[["statistic", "expected_divergence", "p_value"]]
-        if low_means_normal:
-            pred = df[column_parameter]
-        else:
-            pred = -df[column_parameter]
-        y = df["expected_divergence"].astype(int)
-        fpr, tpr, thresholds = metrics.roc_curve(y, pred)
-        roc_auc = metrics.auc(fpr, tpr)
-        extra_params = {}
-        if title is not None:
-            extra_params = {"estimator_name": title}
-        display = metrics.RocCurveDisplay(
-            fpr=fpr, tpr=tpr, roc_auc=roc_auc, **extra_params)
-        display.plot()
-        plt.show()
+    def count_mispredictions(self):
+        """Count how many predictions were wrong."""
+        return len(self.df_all[~self.df_all["correct_prediction"]])
 
-    def plot_benchmark_categories(self):
+    def plot_benchmark_categories(self, ax=None):
         """Plot percentage of correct predictions for each benchmark category."""
         df = self.df_all
+        color_correct = 'lightgray'
+        color_wrong = 'tomato'
 
         # set the figure size
-        fig, ax = plt.subplots(figsize=(7, 3))
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(7, 3))
 
         # from raw value to percentage
         total = df.groupby('benchmark_name')['correct_prediction'].count().reset_index()
@@ -233,7 +280,7 @@ class Explorer(object):
         difference = set(total["benchmark_name"]).difference(set(correct["benchmark_name"]))
         if len(difference) > 0:
             for missing_bench in list(difference):
-                new_row = {'benchmark_name':missing_bench, 'correct_prediction':0, 'samples':0}
+                new_row = {'benchmark_name': missing_bench, 'correct_prediction': 0, 'samples': 0}
                 #append row to the dataframe
                 correct = correct.append(new_row, ignore_index=True)
 
@@ -241,30 +288,30 @@ class Explorer(object):
         total['samples'] = [i / j * 100 for i,j in zip(total['correct_prediction'], total['correct_prediction'])]
 
         # bar chart 1 -> top bars (group of 'smoker=No')
-        sns.barplot(y="benchmark_name",  x="samples", data=total, color='orange', ax=ax)
-
+        sns.barplot(y="benchmark_name",  x="samples", data=total, color=color_wrong, ax=ax)
 
         # bar chart 2 -> bottom bars (group of 'smoker=Yes')
-        sns.barplot(y="benchmark_name", x="samples", data=correct, color='blue', ax=ax)
+        sns.barplot(y="benchmark_name", x="samples", data=correct, color=color_correct, ax=ax)
 
         # add legend
-        top_bar = mpatches.Patch(color='orange', label='Wrong predictions')
-        bottom_bar = mpatches.Patch(color='blue', label='Correct predictions')
-        fig.legend(handles=[top_bar, bottom_bar])
+        top_bar = mpatches.Patch(color=color_wrong, label='% wrong')
+        bottom_bar = mpatches.Patch(color=color_correct, label='% correct')
+        ax.legend(handles=[top_bar, bottom_bar], loc='lower left')
 
         ax.set_xlabel("% of samples")
         ax.set_ylabel("Benchmark Name")
-        ax.set_xlim(0,100)
+        ax.set_xlim(0, 100)
         ax.set_title(f"Test: {self.detector_name}")
 
         # show the graph
-        fig.show()
+        #fig.show()
 
     def inspect_mispredictions(self, variable_to_inspect="n_qubits", benchmark_name=None):
         mispredictions = self.df_all[~self.df_all["correct_prediction"]]
         self.inspect(variable_to_inspect, benchmark_name, mispredictions, "Mispredictions")
 
-    def inspect(self, variable_to_inspect="n_qubits", benchmark_name=None, df=None, title=None):
+    def inspect(self, variable_to_inspect="n_qubits", benchmark_name=None,
+                df=None, title=None, **kwargs):
         if df is None:
             df = self.df_all
         if benchmark_name is not None:
@@ -275,7 +322,7 @@ class Explorer(object):
         df[variable_to_inspect] = np.around(df[variable_to_inspect], decimals=6)
         tot = len(self.df_all)
         try:
-            ax = sns.histplot(data=df, x=variable_to_inspect)
+            ax = sns.histplot(data=df, x=variable_to_inspect, **kwargs)
             if title is None:
                 ax.set_title(f"{len(df)}/{tot} - {benchmark_name}")
             else:
@@ -284,7 +331,53 @@ class Explorer(object):
             print("Scale of the data was too small or too big to plot.")
             print("Raw data: ", sorted(df[variable_to_inspect]))
         print(f"We have displayed {len(df)}/{tot} datapoints.")
-        print(f"[resticted to: {benchmark_name}")
+        print(f"[benchmark restriction: {benchmark_name}]")
+        return ax
+
+    def plot_ECDF(self, test_name: str, variable: str, ax_ecdf=None, ax_deriv=None):
+        """Plot the ECDF of a variable and its derivative.
+
+        ECDF stands for empirical distribution function.
+        """
+        self.focus_on_detector(test_name)
+        raw_values = self.df_all[variable]
+        # raw_values = raw_values[raw_values < max(raw_values)/4]
+        ecdf = ECDF(raw_values)
+        if ax_ecdf is None or ax_deriv is None:
+            fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+            ax_ecdf = axes[0]
+            ax_deriv = axes[1]
+        x = np.array(ecdf.x)
+        y = np.array(ecdf.y)
+        ax_ecdf.plot(x, y, label=f"{variable} ECDF")
+
+        # get the 50 % threshold
+        # since the dataset is balanced we expect to have 50%
+        # of data above and 50% below the threshold
+        threshold_50_perc = [e_x for e_x, e_y in zip(x, y) if e_y >= 0.5][0]
+        ax_ecdf.axhline(0.5, color='r', linestyle="--", label=f"50% threshold: {threshold_50_perc}")
+        ax_ecdf.axvline(threshold_50_perc, color='r', linestyle="--")
+
+        xvals = np.linspace(0, max(raw_values), 5000)
+        yinterp = np.interp(xvals, x, y)
+        #ax_ecdf.plot(xvals, yinterp, label=f"{variable} ECDF interpolated")
+        ax_ecdf.legend()
+
+        # derivative of the ECDF
+        dx = 4
+        y_deriv = np.gradient(yinterp, dx)
+        f = splrep(xvals, yinterp, k=5, s=0.3)
+        ax_deriv.plot(xvals, yinterp, label=f"{variable} ECDF interpolated")
+        ax_deriv.plot(xvals, splev(xvals, f), label="ECDF fitted")
+        y_deriv = splev(xvals, f, der=1)/10
+        ax_deriv.plot(xvals, y_deriv, label="1st derivative")
+        threshold_max_deriv = xvals[np.argmax(y_deriv)]
+        ax_deriv.axvline(threshold_max_deriv, color='r', linestyle="--",
+                         label=f"threshold (max derivative): {threshold_max_deriv}")
+        ax_deriv.legend()
+
+        return threshold_50_perc
+
 
     def get_mispredictions(self):
         return self.df_all[~self.df_all["correct_prediction"]]
