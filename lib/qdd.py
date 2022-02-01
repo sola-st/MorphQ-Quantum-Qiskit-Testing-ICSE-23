@@ -22,6 +22,10 @@ import pathlib
 from utils import load_config_and_check
 from utils import break_function_with_timeout
 
+from utils_db import get_database_connection
+from utils_db import update_database
+from utils_db import get_program_ids_in_table
+
 from qfl import execute_qasm_program
 from qfl import detect_divergence
 from qfl import dump_metadata
@@ -33,27 +37,6 @@ from tqdm import tqdm
 # LEVEL 3
 
 
-def get_program_ids_in_table(con: sl.Connection, table_name: str):
-    """Get the program ids in the passed table of the database connection."""
-    table_exists = (con.cursor().execute(f"""
-        SELECT tbl_name FROM sqlite_master WHERE type='table'
-        AND tbl_name='{table_name}';
-    """).fetchall())
-    if not table_exists:
-        return []
-    present_program_id = pd.read_sql(f'''
-        SELECT DISTINCT program_id
-        FROM {table_name}
-    ''', con)
-    return list(present_program_id["program_id"])
-
-
-def get_database_connection(config: Dict[str, Any]):
-    """Get the database."""
-    DB_PATH = os.path.join(config['experiment_folder'], "qdd_debugging.db")
-    return sl.connect(DB_PATH)
-
-
 def get_qasm_metadata(config: Dict[str, Any], program_id: str):
     """Get the metadata for a program."""
     print(f"Reading: {program_id}")
@@ -63,15 +46,6 @@ def get_qasm_metadata(config: Dict[str, Any], program_id: str):
     with open(path_metadata, 'r') as f:
         metadata = json.load(f)
     return metadata["qasm"]
-
-
-def update_database(
-        con: sl.Connection,
-        table_name: str,
-        record: Dict[str, Any]):
-    """Update the RERUN database with the following result."""
-    df_single = pd.json_normalize([record])
-    df_single.to_sql(table_name, con, if_exists='append')
 
 
 def save_rerun_data(

@@ -15,12 +15,17 @@ from typing import Dict, List, Tuple, Any
 import json
 from os.path import join
 import uuid
+import pandas as pd
 
 from utils import break_function_with_timeout
 from utils import load_config_and_check
 from utils import create_folder_structure
 from utils import convert_single_program
 from utils import run_single_program_in_memory
+
+from utils_db import get_database_connection
+from utils_db import update_database
+from utils_db import get_program_ids_in_table
 
 from generation_strategy import WeightedRandomCircuitGenerator
 from detectors import *
@@ -69,9 +74,42 @@ def dump_all_metadata(
     dump_metadata(
         exec,
         join(out_folder, f"{program_id}_exec.json"))
+    return all_metadata
 
 
 # LEVEL 3
+
+
+def scan_for_divergence(config: Dict[str, Any], test_name: str = 'ks',
+                        alpha_level: int = 0.05, method="holm"):
+    """Scan for divergence in the table."""
+    con = get_database_connection(config, "qfl.db")
+    df = pd.read_sql("SELECT * FROM QFLDATA", con)
+    pval_col = f"divergence.{test_name}.p-value"
+    df_sorted_pvals = df.sort_values(by=[pval_col])
+    k = len(df_sorted_pvals)
+    for i, (idx, row) in enumerate(df_sorted_pvals.iterrows()):
+        P_i = row[pval_col]
+        if method == 'holm':
+            threshold = alpha_level / (k - i + 1)
+        if method == 'bonferroni':
+            threshold = alpha_level / (k)
+        print(f"(i: {i}) current p-value: {P_i} vs threshold: {threshold}")
+        if P_i > threshold:
+            i_star = i
+            print(f"i*: {i_star}")
+            break
+    df_divergent = df_sorted_pvals.iloc[:i_star]
+    all_program_ids = get_program_ids_in_table(con, table_name='DIVERGENCE')
+    new_df_divergent = df_divergent[
+        ~df_divergent["program_id"].isin(all_program_ids)]
+    if len(new_df_divergent) > 0:
+        print(f"{len(new_df_divergent)} new divergent programs found.")
+        print(new_df_divergent)
+        for record in new_df_divergent.to_dict(orient='records'):
+            update_database(con, "DIVERGENCE", record)
+    con.close()
+
 
 def detect_divergence(exec_metadata, detectors: List[Dict[str, Any]] = None):
     """Detect divergence with all the detectors and save the results."""
@@ -185,13 +223,15 @@ def loop(config):
         exec_metadata = execute_qasm_program(
             config, program_id, metadata_qasm)
         div_metadata = detect_divergence(exec_metadata, detectors=config["detectors"])
-        dump_all_metadata(
+        all_metadata = dump_all_metadata(
             out_folder=join(config["experiment_folder"], "programs", "metadata"),
             program_id=program_id, qasm=metadata_qasm,
             exec=exec_metadata, div=div_metadata,
             platform_names=[p["name"] for p in config["platforms"]],
             shots=estimate_n_samples_needed(config))
-
+        con = get_database_connection(config, "qfl.db")
+        update_database(con, table_name="QFLDATA", record=all_metadata)
+        scan_for_divergence(config, method='holm')
 
 # LEVEL 1:
 
