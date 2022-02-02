@@ -31,10 +31,12 @@ class GenerationStrategy(ABC):
 
     def generate(self,
                  n_qubits: int, n_ops_range: Tuple[int, int],
-                 gate_set: Dict, random_seed: int, circuit_id: str) -> str:
+                 gate_set: Dict, random_seed: int, circuit_id: str,
+                 in_memory: bool = False) -> str:
         self.parse_metadata(n_qubits, n_ops_range, gate_set, random_seed)
         qasm_content, metadata = self._generate_single_program(circuit_id)
-        self.store_qasm(circuit_id, qasm_content, self.out_folder, metadata)
+        if not in_memory:
+            self.store_qasm(circuit_id, qasm_content, self.out_folder, metadata)
         return qasm_content, metadata
 
     def parse_metadata(self,
@@ -184,6 +186,7 @@ class WeightedRandomCircuitGenerator(GenerationStrategy):
         print("-" * 80)
         print(f"Creating circuit: {circuit_id}")
 
+        random.seed(self.random_seed)
         n_ops = random.randint(self.min_n_ops, self.max_n_ops)
 
         # generate a random circuit

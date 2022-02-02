@@ -99,7 +99,8 @@ _cirq2ops_mapping_objects = [
     MappingObject(cirq.ops.PhasedISwapPowGate, OpType.PhasedISWAP),
     # ADDITION
     MappingObject(QasmUGate, OpType.U3, preferred_to_tk=True),
-    MappingObject(QasmUGate, OpType.U2, preferred_to_tk=False)
+    MappingObject(QasmUGate, OpType.U2, preferred_to_tk=False),
+    MappingObject(QasmUGate, OpType.U1, preferred_to_tk=False)
     # MappingObject(QasmUGate, OpType.Barrier, preferred_to_tk=False)
 ]
 
@@ -366,6 +367,9 @@ def my_tk_to_cirq(tkcirc: Circuit, copy_all_qubits: bool = False) -> cirq.circui
             # ADDITION
             elif optype == OpType.U2:
                 cirqop = gatetype(theta=cmath.pi/2, phi=params[0], lmda=params[1])(*qids)
+            # ADDITION
+            elif optype == OpType.U1:
+                cirqop = gatetype(theta=0, phi=0, lmda=params[0])(*qids)
             else:
                 cirqop = gatetype(exponent=params[0])(*qids)
         oplst.append(cirqop)
@@ -483,7 +487,7 @@ def extract_function_calls(stats_string: str):
     return function_calls
 
 
-def convert_and_execute_qiskit_and_cirq_via_tket(qasm_path: str, shots: int = 8192):
+def convert_and_execute_qiskit_and_cirq_via_tket(qasm_path: str, shots: int = 8192) -> Dict[str, Any]:
     """Convert the circuit in both platforms and execute them."""
     circ = circuit_from_qasm(qasm_path)
     pr = cProfile.Profile()
