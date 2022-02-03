@@ -23,6 +23,10 @@ data/experiment_v12/*
 data/qfl_v00/*
 data/qfl_v01/*
 data/qfl_v02/*
+data/qfl_v03/*
+
+data/fuzzying_via_notebook/nb29/*
+
 
 data/circuit_image/*
 data/static_code_analysis/*

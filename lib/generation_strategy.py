@@ -12,6 +12,7 @@ from typing import Tuple
 
 import numpy as np
 import math
+import uuid
 
 from qasm_manipulation import remove_all_measurements
 from qasm_manipulation import detect_registers
@@ -25,14 +26,19 @@ class NoMoreProgramsAvailable(Exception):
 
 class GenerationStrategy(ABC):
 
-    def __init__(self, out_folder: str, benchmark_name: str):
+    def __init__(self, out_folder: str, benchmark_name: str, random_seed: int = 42):
         self.out_folder = out_folder
         self.benchmark_name = benchmark_name
+        if random_seed is not None:
+            np.random.seed(random_seed)
+            random.seed(random_seed)
 
     def generate(self,
                  n_qubits: int, n_ops_range: Tuple[int, int],
-                 gate_set: Dict, random_seed: int, circuit_id: str,
+                 gate_set: Dict, random_seed: int = None, circuit_id: str = None,
                  in_memory: bool = False) -> str:
+        if circuit_id is None:
+            circuit_id = uuid.uuid4().hex
         self.parse_metadata(n_qubits, n_ops_range, gate_set, random_seed)
         qasm_content, metadata = self._generate_single_program(circuit_id)
         if not in_memory:
@@ -41,12 +47,15 @@ class GenerationStrategy(ABC):
 
     def parse_metadata(self,
                        n_qubits: int, n_ops_range: Tuple[int, int],
-                       gate_set: Dict, random_seed: int):
+                       gate_set: Dict, random_seed: int = None):
         self.n_qubits = n_qubits
         self.min_n_ops = n_ops_range[0]
         self.max_n_ops = n_ops_range[1]
         self.gate_set = gate_set
-        self.random_seed = random_seed
+        if random_seed is not None:
+            np.random.seed(random_seed)
+            random.seed(random_seed)
+            self.random_seed = random_seed
 
     @abstractmethod
     def _generate_single_program(self, circuit_id: str):
@@ -195,6 +204,71 @@ class WeightedRandomCircuitGenerator(GenerationStrategy):
             n_ops=n_ops,
             gate_set=self.gate_set,
             random_state=np.random.RandomState(self.random_seed))
+
+        metadata_dict = {
+            "n_qubits": self.n_qubits,
+            "n_ops": n_ops,
+            "gate_set": self.gate_set,
+            "strategy_program_generation": self.__class__.__name__
+        }
+
+        return random_circuit_qasm_str, metadata_dict
+
+
+class OmniGateCircuitGenerator(GenerationStrategy):
+
+    def _generate_n_params(self, n_params: int):
+        numeric_prams = np.random.uniform(
+            low=0, high=2 * math.pi, size=n_params)
+        str_params = [str(e) for e in numeric_prams]
+        return "(" + ",".join(str_params) + ")"
+
+    def _generate_n_qubits(self, n_qubits: int, total_qubits: int):
+        numeric_qubits = np.random.choice(np.arange(total_qubits), n_qubits, replace=False)
+        str_qubits = [f"q[{e}]" for e in numeric_qubits]
+        return ", ".join(str_qubits)
+
+    def _random_concatenation(self, n_qubits: int, n_ops: int):
+        """Random strategy: select a gate according to its weight."""
+        circuit_qasm = 'OPENQASM 2.0;\ninclude "qelib1.inc";\n'
+
+        # DISABLED BECAUSE IT IS FIXED AT OBJECT INITIALIZATION TIME
+        # np.random.seed(self.random_seed)
+
+        qubits = range(n_qubits)
+        circuit_qasm += f"qreg q[{n_qubits}];\n"
+        circuit_qasm += f"creg c[{n_qubits}];\n"
+
+        for i_op in range(n_ops):
+            op = np.random.choice(self.gate_set, 1)[0]
+            print(op)
+            i_instr = f'{op["name"]}'
+            if op["n_params"] > 0:
+                i_instr += f'{self._generate_n_params(n_params=op["n_params"])}'
+            i_instr += f' {self._generate_n_qubits(n_qubits=op["n_bits"], total_qubits=n_qubits)}'
+            i_instr += ';\n'
+
+            circuit_qasm += i_instr
+
+        # circuit_qasm += f"barrier q;\n"
+        # Measure
+        circuit_qasm += f"measure q -> c;\n"
+        return circuit_qasm
+
+    def _generate_single_program(self, circuit_id: str):
+        """Generate a single QASM program."""
+        print("-" * 80)
+        print(f"Creating circuit: {circuit_id}")
+
+        # DISABLED BECAUSE IT IS FIXED AT OBJECT INITIALIZATION TIME
+        # random.seed(self.random_seed)
+
+        n_ops = random.randint(self.min_n_ops, self.max_n_ops)
+
+        # generate a random circuit
+        random_circuit_qasm_str = self._random_concatenation(
+            n_qubits=self.n_qubits,
+            n_ops=n_ops)
 
         metadata_dict = {
             "n_qubits": self.n_qubits,

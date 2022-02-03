@@ -27,7 +27,8 @@ from utils_db import get_database_connection
 from utils_db import update_database
 from utils_db import get_program_ids_in_table
 
-from generation_strategy import WeightedRandomCircuitGenerator
+import generation_strategy
+from generation_strategy import *
 from detectors import *
 from tket_interface import convert_and_execute_qiskit_and_cirq_via_tket
 
@@ -100,6 +101,8 @@ def scan_for_divergence(config: Dict[str, Any], test_name: str = 'ks',
             threshold = alpha_level / (k - i + 1)
         if method == 'bonferroni':
             threshold = alpha_level / (k)
+        if method == 'bh':
+            threshold = (alpha_level / (k)) * i
         print(f"(i: {i}) current p-value: {P_i} vs threshold: {threshold}")
         if P_i > threshold:
             i_star = i
@@ -165,25 +168,28 @@ def translate_to_platform_code(
 
 
 def fuzz_qasm_program(
+        generator: generation_strategy.GenerationStrategy,
         experiment_folder: str = None,
         config_generation: Dict[str, Any] = None,
         feedback=None):
     """Fuzz a quantum circuit in QASM according to the given strategy."""
     program_id = uuid.uuid4().hex
-    generator = eval(config_generation["generator_object"])(
-        out_folder=join(experiment_folder, "programs", "qasm"),
-        benchmark_name=f"seed_{config_generation['random_seed']}")
+    selected_gate_set = config_generation["gate_set"]
+    if config_generation["gate_set_dropout"] is not None:
+        dropout = config_generation["gate_set_dropout"]
+        selected_gate_set = list(np.random.choice(selected_gate_set,
+            size=int(len(selected_gate_set) * dropout), replace=False))
     _, metadata = generator.generate(
         n_qubits=random.randint(
             config_generation["min_n_qubits"],
             config_generation["max_n_qubits"]),
         n_ops_range=(
             config_generation["min_n_ops"], config_generation["max_n_ops"]),
-        gate_set=config_generation["gate_set"],
-        random_seed=config_generation["random_seed"],
+        gate_set=selected_gate_set,
         circuit_id=program_id)
     metadata = {
         'program_id': program_id,
+        'selected_gate_set': [g["name"] for g in selected_gate_set],
         'qasm_filepath': join(experiment_folder, "programs", "qasm", f"{program_id}.qasm"),
         **metadata
     }
@@ -223,15 +229,22 @@ def execute_qasm_program(
 
 def loop(config):
     """Start fuzzing loop."""
+    config_generation = config["generation_strategy"]
+    experiment_folder = config["experiment_folder"]
+    generator = eval(config_generation["generator_object"])(
+        out_folder=join(experiment_folder, "programs", "qasm"),
+        benchmark_name=f"seed_{config_generation['random_seed']}",
+        random_seed=config_generation["random_seed"])
     while True:
         program_id, metadata_qasm = fuzz_qasm_program(
-            experiment_folder=config["experiment_folder"],
+            generator,
+            experiment_folder=experiment_folder,
             config_generation=config["generation_strategy"])
         exec_metadata = execute_qasm_program(
             config, program_id, metadata_qasm)
         div_metadata = detect_divergence(exec_metadata, detectors=config["detectors"])
         all_metadata = dump_all_metadata(
-            out_folder=join(config["experiment_folder"], "programs", "metadata"),
+            out_folder=join(experiment_folder, "programs", "metadata"),
             program_id=program_id, qasm=metadata_qasm,
             exec=exec_metadata, div=div_metadata,
             platform_names=[p["name"] for p in config["platforms"]],

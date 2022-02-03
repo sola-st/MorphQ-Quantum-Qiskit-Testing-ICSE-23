@@ -1,6 +1,8 @@
 import re
-from typing import List
 import numpy as np
+import uuid
+from typing import Dict, Any, List
+
 
 def remove_all_measurements(qasm_program: str):
     lines = qasm_program.split("\n")
@@ -62,6 +64,66 @@ def append_1Q_gate(qasm_program: str, gate: str, qubits: List[int]):
         new_qasm_program += "\n" + gate + " " + first_qreg["name"] + "[" + str(qubit) + "];"
     # not gate: "x q[0];"
     return new_qasm_program
+
+
+# User for metamorphic testing
+
+
+def get_n_qubits(qasm_content: str) -> int:
+    m = re.search("qreg q\[(\d*)", qasm_content)
+    if m:
+        return int(m.group(1))
+    return -1
+
+
+def replace_all_reg_occurrences(qasm_content: str, start: str, end: str) -> str:
+    qasm_content = qasm_content.replace(f"q[{start}]", f"q[{end}]")
+    qasm_content = qasm_content.replace(f"c[{start}]", f"c[{end}]")
+    return qasm_content
+
+
+def scramble_qubits(qasm_content: str, qubits_mapping: Dict[int, int]):
+    """Swap the qubits based on order."""
+    pairs = [{"start": k, "end": v} for k, v in qubits_mapping.items()]
+    triplets = [ {"tmp": uuid.uuid4().hex, **p} for p in pairs]
+    print("-" * 80)
+    print(qubits_mapping)
+    for triplet in triplets:
+        qasm_content = replace_all_reg_occurrences(
+            qasm_content, start=triplet["start"], end=triplet["tmp"])
+    for triplet in triplets:
+        qasm_content = replace_all_reg_occurrences(
+            qasm_content, start=triplet["tmp"], end=triplet["end"])
+    return qasm_content
+
+
+def create_random_mapping(qasm_content: str, seed: int = None) -> Dict[int, int]:
+    max_qubits = get_n_qubits(qasm_content)
+    if seed:
+        np.random.seed(seed)
+    start_qubits = np.arange(max_qubits)
+    np.random.shuffle(start_qubits)
+    end_qubits = np.arange(max_qubits)
+    np.random.shuffle(end_qubits)
+    return {f: s for f, s in zip(start_qubits, end_qubits)}
+
+
+def read_str_with_mapping(bitstring: str, direct_mapping: Dict[int, int]):
+    """Given a bitstring convert it to the original mapping."""
+    n_bits = len(bitstring)
+    return "".join([bitstring[direct_mapping[i]] for i in range(n_bits)])
+
+
+def convert_result_to_mapping(result: Dict[str, int], qubits_mapping: Dict[int, int]):
+    """Convert the result via the given mapping.
+
+    because a qubit maping will make also the result scrambled thus we have
+    to reverse the mapping and read the results.
+    """
+    return {
+        read_str_with_mapping(bitstring, qubits_mapping): freq
+        for bitstring, freq in result.items()
+    }
 
 
 qasm_content = """
@@ -231,6 +293,7 @@ class QasmModifier(object):
 
     def reset_mask(self):
         self.mask_hide = np.zeros(len(self.lines), dtype=bool)
+
 
 def test_detect_registers():
     assert detect_registers(qasm_content) == [
