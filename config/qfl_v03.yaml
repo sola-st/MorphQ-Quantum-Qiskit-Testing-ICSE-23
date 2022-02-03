@@ -23,6 +23,12 @@ qdiff_user_defined_threshold: 0.1
 qdiff_confidence_level: 0.66666
 
 
+# DIVERGENCE THRESHOLD
+divergence_threshold_method: holm  # holm | bonferroni | bh
+divergence_alpha_level: 0.05
+divergence_primary_test: ks
+
+
 # DETECTORS
 detectors:
   - name: ks

@@ -252,7 +252,10 @@ def loop(config):
                 config, n_measured_qubits=metadata_qasm["n_qubits"]))
         con = get_database_connection(config, "qfl.db")
         update_database(con, table_name="QFLDATA", record=all_metadata)
-        scan_for_divergence(config, method='holm')
+        scan_for_divergence(config,
+                            method=config["divergence_threshold_method"],
+                            test_name=config["divergence_primary_test"],
+                            alpha_level=config["divergence_alpha_level"])
 
 # LEVEL 1:
 

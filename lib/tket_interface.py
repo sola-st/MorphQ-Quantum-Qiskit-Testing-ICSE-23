@@ -69,12 +69,12 @@ _cirq2ops_mapping_objects = [
     MappingObject(cirq.TOFFOLI, OpType.CCX),
     MappingObject(cirq_common.H, OpType.H),
     MappingObject(cirq_common.MeasurementGate, OpType.Measure),
-    MappingObject(cirq_common.XPowGate, OpType.Rx, preferred_to_cirq=True),
-    MappingObject(cirq_common.YPowGate, OpType.Ry, preferred_to_cirq=True),
-    MappingObject(cirq_common.ZPowGate, OpType.Rz, preferred_to_cirq=True),
-    MappingObject(cirq_common.Rx, OpType.Rx, preferred_to_cirq=False),
-    MappingObject(cirq_common.Ry, OpType.Ry, preferred_to_cirq=False),
-    MappingObject(cirq_common.Rz, OpType.Rz, preferred_to_cirq=False),
+    MappingObject(cirq_common.XPowGate, OpType.Rx, preferred_to_cirq=False),
+    MappingObject(cirq_common.YPowGate, OpType.Ry, preferred_to_cirq=False),
+    MappingObject(cirq_common.ZPowGate, OpType.Rz, preferred_to_cirq=False),
+    MappingObject(cirq_common.Rx, OpType.Rx, preferred_to_cirq=True),
+    MappingObject(cirq_common.Ry, OpType.Ry, preferred_to_cirq=True),
+    MappingObject(cirq_common.Rz, OpType.Rz, preferred_to_cirq=True),
     MappingObject(cirq_common.XPowGate(exponent=0.5), OpType.V),
     MappingObject(cirq_common.XPowGate(exponent=-0.5), OpType.Vdg),
     MappingObject(cirq_common.S, OpType.S),
@@ -350,7 +350,7 @@ def my_tk_to_cirq(tkcirc: Circuit, copy_all_qubits: bool = False) -> cirq.circui
         else:
             qids = [qmap[qbit] for qbit in command.args]
             params = op.params
-            # DEBUG -> print(optype)
+            # DEBUG -> print(optype) print("params:", params)
             if len(params) == 0:
                 cirqop = gatetype(*qids)
             elif optype == OpType.PhasedX:
@@ -366,10 +366,13 @@ def my_tk_to_cirq(tkcirc: Circuit, copy_all_qubits: bool = False) -> cirq.circui
                 cirqop = gatetype(theta=params[0], phi=params[1], lmda=params[2])(*qids)
             # ADDITION
             elif optype == OpType.U2:
-                cirqop = gatetype(theta=cmath.pi/2, phi=params[0], lmda=params[1])(*qids)
+                cirqop = gatetype(theta=0.5, phi=params[0], lmda=params[1])(*qids)
             # ADDITION
             elif optype == OpType.U1:
                 cirqop = gatetype(theta=0, phi=0, lmda=params[0])(*qids)
+            # ADDITION
+            elif optype == OpType.Rx or optype == OpType.Ry or optype == OpType.Rz:
+                cirqop = gatetype(rads=params[0]*cmath.pi)(*qids)
             else:
                 cirqop = gatetype(exponent=params[0])(*qids)
         oplst.append(cirqop)
@@ -443,15 +446,23 @@ def run_cirq(
     """Run cirq and return the result."""
     simulator = cirq.Simulator()
     result = simulator.run(qc_cirq, repetitions=shots)
+    print(qc_cirq)
     measurement_keys = qc_cirq.all_measurement_key_names()
+    print("measurement_keys:", measurement_keys)
     register_numbers = [
         int(re.findall(r'\[(\d+)\]', measurement_key)[0])
+        #int(re.search(r"\d+", measurement_key).group(0))
         for measurement_key in measurement_keys
     ]
+    print("register_numbers: ", register_numbers)
     sorted_measurement_keys = list(zip(*sorted(zip(register_numbers, measurement_keys))))[1]
+    print("sorted_measurement_keys:", sorted_measurement_keys)
     result_dict = dict(result.multi_measurement_histogram(keys=sorted_measurement_keys))
+    print("result_dict: ", result_dict)
     keys = list(map(lambda arr: reduce(lambda x, y: str(x) + str(y), arr[::-1]), result_dict.keys()))
-    counts_cirq = dict(zip(keys,[value for value in result_dict.values()]))
+    print("keys:", keys)
+    counts_cirq = dict(zip(keys, [value for value in result_dict.values()]))
+
     return counts_cirq
 
 
