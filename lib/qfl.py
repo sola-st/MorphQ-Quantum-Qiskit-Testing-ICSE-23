@@ -31,6 +31,8 @@ import generation_strategy
 from generation_strategy import *
 from detectors import *
 from tket_interface import convert_and_execute_qiskit_and_cirq_via_tket
+from multi_platform_interface import convert_and_execute_qiskit_and_cirq_natively
+
 
 from math import sqrt
 
@@ -96,14 +98,15 @@ def scan_for_divergence(config: Dict[str, Any], test_name: str = 'ks',
     df_sorted_pvals = df.sort_values(by=[pval_col])
     k = len(df_sorted_pvals)
     for i, (idx, row) in enumerate(df_sorted_pvals.iterrows()):
+        ordinal_i = i + 1
         P_i = row[pval_col]
         if method == 'holm':
-            threshold = alpha_level / (k - i + 1)
-        if method == 'bonferroni':
+            threshold = alpha_level / (k - ordinal_i + 1)
+        elif method == 'bonferroni':
             threshold = alpha_level / (k)
-        if method == 'bh':
-            threshold = (alpha_level / (k)) * i
-        print(f"(i: {i}) current p-value: {P_i} vs threshold: {threshold}")
+        elif method == 'bh':
+            threshold = (alpha_level / (k)) * ordinal_i
+        print(f"(i: {ordinal_i}) current p-value: {P_i} vs threshold: {threshold}")
         if P_i > threshold:
             i_star = i
             print(f"i*: {i_star}")
@@ -220,6 +223,18 @@ def execute_qasm_program(
             "profile_output": results["profile_output"],
             "profile_function_calls": results["profile_function_calls"],
             "profile_time": results["profile_time"]
+        }
+    elif config["mode"] == "native":
+        results = convert_and_execute_qiskit_and_cirq_natively(
+            qasm_path=metadata_qasm["qasm_filepath"],
+            shots=estimate_n_samples_needed(
+                config, n_measured_qubits=metadata_qasm["n_qubits"])
+        )
+        exec_metadata = {
+            "res_A": results["qiskit"],
+            "platform_A": "qiskit",
+            "res_B": results["cirq"],
+            "platform_B": "cirq"
         }
     return exec_metadata
 

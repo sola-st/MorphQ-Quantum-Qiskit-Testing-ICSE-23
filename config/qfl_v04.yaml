@@ -1,0 +1,153 @@
+# Run the Quantum Fuzzy Lop on a file
+# use the qdiff threshold to compute the number of samples needed
+# use the creation of circuits with many more gates.
+# sample from a subselection of those gate (dropout parameter)
+# use the native APIs of Qiskit and Cirq to parse the qasm
+
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+mode: native  # tket | qconvert | native
+
+
+# FOLDERS
+experiment_folder: ../data/qfl_v04/
+
+
+# EXECUTION
+strategy_sample_size_estimation: qdiff  # qdiff | null
+fixed_sample_size: 8192
+
+
+# SAMPLE SIZE ESTIMATION PARAMETERS
+qdiff_user_defined_threshold: 0.1
+qdiff_confidence_level: 0.66666
+
+
+# DIVERGENCE THRESHOLD
+divergence_threshold_method: bh  # holm | bonferroni | bh
+divergence_alpha_level: 0.05
+divergence_primary_test: ks
+
+
+# DETECTORS
+detectors:
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
+
+# GENERATION STRATEGY
+generation_strategy:
+  name: OmniRandom
+  generator_object: OmniGateCircuitGenerator
+  random_seed: 42
+  min_n_qubits: 1  # at least 1
+  max_n_qubits: 20
+  min_n_ops: 0
+  max_n_ops: 30
+  gate_set_dropout: 0.5
+  gate_set:
+  - n_bits: 3
+    n_params: 0
+    name: ccx
+  - n_bits: 3
+    n_params: 0
+    name: cswap
+  - n_bits: 2
+    n_params: 0
+    name: cx
+  - n_bits: 2
+    n_params: 0
+    name: cy
+  - n_bits: 2
+    n_params: 0
+    name: cz
+  - n_bits: 2
+    n_params: 0
+    name: ch
+  - n_bits: 2
+    n_params: 0
+    name: swap
+  - n_bits: 1
+    n_params: 0
+    name: id
+  - n_bits: 1
+    n_params: 1
+    name: u1
+  - n_bits: 1
+    n_params: 2
+    name: u2
+  - n_bits: 1
+    n_params: 3
+    name: u3
+  - n_bits: 1
+    n_params: 0
+    name: x
+  - n_bits: 1
+    n_params: 0
+    name: y
+  - n_bits: 1
+    n_params: 0
+    name: z
+  - n_bits: 1
+    n_params: 0
+    name: h
+  - n_bits: 1
+    n_params: 0
+    name: s
+  - n_bits: 1
+    n_params: 0
+    name: sdg
+  - n_bits: 1
+    n_params: 0
+    name: t
+  - n_bits: 1
+    n_params: 0
+    name: tdg
+  - n_bits: 1
+    n_params: 1
+    name: rx
+  - n_bits: 1
+    n_params: 1
+    name: ry
+  - n_bits: 1
+    n_params: 1
+    name: rz
+
+# PLATFORMS
+platforms:
+  - name: qiskit
+    format: qiskit
+  - name: cirq
+    format: cirq
+
+# SUBFOLDER STRUCTURE
+folder_structure:
+  confirmed_divergence:
+    metadata: null
+    qasm: null
+    qiskit: null
+    cirq: null
+  programs:
+    metadata: null
+    qasm: null
+    qiskit: null
+    cirq: null
+  debug:
+    metadata: null
+    qasm: null
+    qiskit: null
+    cirq: null
+
+
+# BUDGET
+budget_time: null  # SECONDS: null for continuous running
+
+
+# DEBUGGER
+max_runs_per_suspect_bug: 10
+max_seconds_per_suspect_bug: 120
+update_db_every_n_programs: 1
+
+primary_detector_for_debug: ks

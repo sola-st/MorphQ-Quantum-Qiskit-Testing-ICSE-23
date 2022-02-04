@@ -224,6 +224,8 @@ class OmniGateCircuitGenerator(GenerationStrategy):
         return "(" + ",".join(str_params) + ")"
 
     def _generate_n_qubits(self, n_qubits: int, total_qubits: int):
+        if total_qubits == 0:
+            return ""
         numeric_qubits = np.random.choice(np.arange(total_qubits), n_qubits, replace=False)
         str_qubits = [f"q[{e}]" for e in numeric_qubits]
         return ", ".join(str_qubits)
@@ -239,21 +241,27 @@ class OmniGateCircuitGenerator(GenerationStrategy):
         circuit_qasm += f"qreg q[{n_qubits}];\n"
         circuit_qasm += f"creg c[{n_qubits}];\n"
 
-        for i_op in range(n_ops):
-            op = np.random.choice(self.gate_set, 1)[0]
-            print(op)
-            i_instr = f'{op["name"]}'
-            if op["n_params"] > 0:
-                i_instr += f'{self._generate_n_params(n_params=op["n_params"])}'
-            i_instr += f' {self._generate_n_qubits(n_qubits=op["n_bits"], total_qubits=n_qubits)}'
-            i_instr += ';\n'
+        # on very small circuits some gates cannot be used because we do not
+        # have enough qubits
+        compatible_gate_set = [
+            g for g in self.gate_set if n_qubits >= g["n_bits"]]
 
-            circuit_qasm += i_instr
+        if n_qubits > 0:
+            # we add operations only if we have at least one qubit
+            for i_op in range(n_ops):
+                op = np.random.choice(compatible_gate_set, 1)[0]
+                i_instr = f'{op["name"]}'
+                if op["n_params"] > 0:
+                    i_instr += f'{self._generate_n_params(n_params=op["n_params"])}'
+                i_instr += f' {self._generate_n_qubits(n_qubits=op["n_bits"], total_qubits=n_qubits)}'
+                i_instr += ';\n'
+
+                circuit_qasm += i_instr
 
         # circuit_qasm += f"barrier q;\n"
         # Measure
         circuit_qasm += f"measure q -> c;\n"
-        return circuit_qasm
+        return circuit_qasm, compatible_gate_set
 
     def _generate_single_program(self, circuit_id: str):
         """Generate a single QASM program."""
@@ -266,17 +274,18 @@ class OmniGateCircuitGenerator(GenerationStrategy):
         n_ops = random.randint(self.min_n_ops, self.max_n_ops)
 
         # generate a random circuit
-        random_circuit_qasm_str = self._random_concatenation(
+        random_circuit_qasm_str, compatible_gate_set = self._random_concatenation(
             n_qubits=self.n_qubits,
             n_ops=n_ops)
 
         metadata_dict = {
             "n_qubits": self.n_qubits,
             "n_ops": n_ops,
-            "gate_set": self.gate_set,
+            "gate_set": [g["name"] for g in compatible_gate_set],
             "strategy_program_generation": self.__class__.__name__
         }
-
+        print("Gate set: ", [g["name"] for g in self.gate_set],
+              " - ops: ", n_ops)
         return random_circuit_qasm_str, metadata_dict
 
 

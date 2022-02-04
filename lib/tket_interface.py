@@ -12,6 +12,10 @@ import qiskit
 import cProfile, pstats, io
 from pstats import SortKey
 
+from multi_platform_interface import execute_qiskit_and_cirq
+from multi_platform_interface import run_cirq
+from multi_platform_interface import run_qiskit
+
 
 # Copyright 2019-2022 Cambridge Quantum Computing
 #
@@ -45,6 +49,7 @@ from sympy import pi  # type: ignore
 # For translating cirq circuits to tket circuits
 cirq_common = cirq.ops.common_gates
 cirq_pauli = cirq.ops.pauli_gates
+
 from cirq.circuits.qasm_output import QasmUGate
 
 cirq_CH = cirq_common.H.controlled(1)
@@ -426,8 +431,8 @@ def process_characterisation(xmon: cirq_google.XmonDevice) -> dict:
     return characterisation
 
 
-def convert_to_qiskit_and_cirq(circ: Circuit, show=False):
-    """Convert the circuit in both platforms."""
+def convert_to_qiskit_and_cirq_tket(circ: Circuit, show=False):
+    """Convert the Tket circuit in both platforms."""
     qc_qiskit = tk_to_qiskit(circ)
     assert isinstance(qc_qiskit, qiskit.circuit.quantumcircuit.QuantumCircuit)
     qc_cirq = my_tk_to_cirq(circ)
@@ -438,53 +443,6 @@ def convert_to_qiskit_and_cirq(circ: Circuit, show=False):
         print(type(qc_cirq))
         print(qc_cirq)
     return {"qc_qiskit": qc_qiskit, "qc_cirq": qc_cirq}
-
-
-def run_cirq(
-        qc_cirq: cirq.circuits.circuit.Circuit,
-        shots: int = 8192):
-    """Run cirq and return the result."""
-    simulator = cirq.Simulator()
-    result = simulator.run(qc_cirq, repetitions=shots)
-    print(qc_cirq)
-    measurement_keys = qc_cirq.all_measurement_key_names()
-    print("measurement_keys:", measurement_keys)
-    register_numbers = [
-        int(re.findall(r'\[(\d+)\]', measurement_key)[0])
-        #int(re.search(r"\d+", measurement_key).group(0))
-        for measurement_key in measurement_keys
-    ]
-    print("register_numbers: ", register_numbers)
-    sorted_measurement_keys = list(zip(*sorted(zip(register_numbers, measurement_keys))))[1]
-    print("sorted_measurement_keys:", sorted_measurement_keys)
-    result_dict = dict(result.multi_measurement_histogram(keys=sorted_measurement_keys))
-    print("result_dict: ", result_dict)
-    keys = list(map(lambda arr: reduce(lambda x, y: str(x) + str(y), arr[::-1]), result_dict.keys()))
-    print("keys:", keys)
-    counts_cirq = dict(zip(keys, [value for value in result_dict.values()]))
-
-    return counts_cirq
-
-
-def run_qiskit(
-        qc_qiskit: qiskit.circuit.quantumcircuit.QuantumCircuit,
-        shots: int = 8192):
-    """Run qiskit and return the result."""
-    backend = Aer.get_backend('qasm_simulator')
-    job = execute(qc_qiskit, backend=backend, shots=shots)
-    job_result = job.result()
-    counts_qiskit = job_result.get_counts(qc_qiskit)
-    return counts_qiskit
-
-
-def execute_qiskit_and_cirq(
-        qc_qiskit: qiskit.circuit.quantumcircuit.QuantumCircuit,
-        qc_cirq: cirq.circuits.circuit.Circuit,
-        shots: int = 8192):
-    """Execute the quantum circuits and return the result dictionaries."""
-    counts_qiskit = run_qiskit(qc_qiskit, shots)
-    counts_cirq = run_cirq(qc_cirq, shots)
-    return {"qiskit": counts_qiskit, "cirq": counts_cirq}
 
 
 def extract_function_calls(stats_string: str):
@@ -503,7 +461,7 @@ def convert_and_execute_qiskit_and_cirq_via_tket(qasm_path: str, shots: int = 81
     circ = circuit_from_qasm(qasm_path)
     pr = cProfile.Profile()
     pr.enable()
-    qc_circuits = convert_to_qiskit_and_cirq(circ)
+    qc_circuits = convert_to_qiskit_and_cirq_tket(circ)
     counts_qiskit_cirq = execute_qiskit_and_cirq(**qc_circuits, shots=shots)
     pr.disable()
     s = io.StringIO()
