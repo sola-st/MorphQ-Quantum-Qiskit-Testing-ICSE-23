@@ -1,4 +1,22 @@
 
+"""Run a cross platform testing with some configurations.
+
+It should be run via script with the following command:
+OPTION A:
+To generate new programs and execute them:
+cross_platform_testing.py generate --config_file=config.yaml
+
+OPTION B:
+To run a detector/statistical test on the produced bitstrings:
+cross_platform_testing.py detect --config_file=config.yaml
+
+Note: insert the tag --benchmark to run only the benchmark configurations
+as specified by the is_benchmark flag in the congig.yaml file.
+
+
+"""
+
+
 import click
 import os
 from utils import iterate_parallel, load_config_and_check

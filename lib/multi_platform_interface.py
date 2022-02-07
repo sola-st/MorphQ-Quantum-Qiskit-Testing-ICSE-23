@@ -1,4 +1,14 @@
 
+"""Interface to run quantum circuits on different platforms.
+
+It supports conversion from qasm to the platform-specific circuits and it
+can also run them and return the result.
+
+Some platforms supported are:
+- cirq
+- qiskit
+"""
+
 import qiskit
 from qiskit import QuantumRegister, ClassicalRegister
 from qiskit import QuantumCircuit, execute, Aer

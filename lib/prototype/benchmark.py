@@ -5,6 +5,10 @@ Benchmark for the detectors of divergent input.
 In this file you can:
 - create a new benchmark (see the function `create_benchmark`)
 - run the benchmark with a new detector (see the function `run_benchmark`)
+
+This was the legacy version of the benchmark tooling, replaced by
+cross_platform_testing.py
+
 """
 
 

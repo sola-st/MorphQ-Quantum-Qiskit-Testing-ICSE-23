@@ -30,6 +30,18 @@ def load_json(filename, folder):
         return json.load(f)
 
 
+def dump_metadata(
+        metadata: Dict[str, Any] = None,
+        metadata_filepath: str = None,
+        to_indent: bool = False):
+    """Dump the metadata dictionary to JSON."""
+    with open(metadata_filepath, 'w') as f:
+        if to_indent:
+            json.dump(metadata, f, indent=4)
+        else:
+            json.dump(metadata, f)
+
+
 def load_multiple_json(program_id, folder):
     """Read all the json files refering to a specific program.
 

@@ -1,0 +1,262 @@
+# Run the Quantum Fuzzy Lop on a file
+# use the qdiff threshold to compute the number of samples needed
+# use the creation of circuits with many more gates.
+# sample from a subselection of those gate (dropout parameter)
+# use the native APIs of Qiskit and Cirq to parse the qasm
+
+
+# EXECUTABLE PATH
+qconvert_path: ../node_converter/qconvert-js/cli.js
+python_path: /home/paltenmo/.conda/envs/ML4Quantum/bin/python3
+mode: native  # tket | qconvert | native
+
+
+# FOLDERS
+experiment_folder: ../data/qmt_v00/
+
+
+# EXECUTION
+strategy_sample_size_estimation: qdiff  # qdiff | null
+fixed_sample_size: 8192
+
+
+# SAMPLE SIZE ESTIMATION PARAMETERS
+qdiff_user_defined_threshold: 0.1
+qdiff_confidence_level: 0.66666
+
+
+# DIVERGENCE THRESHOLD
+divergence_threshold_method: bh  # holm | bonferroni | bh
+divergence_alpha_level: 0.05
+divergence_primary_test: ks
+
+
+# DETECTORS
+detectors:
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
+
+# GENERATION STRATEGY
+generation_strategy:
+  name: QiskitFuzzer
+  generator_object: QiskitFuzzer
+  random_seed: 42
+  min_n_qubits: 1  # at least 1
+  max_n_qubits: 20
+  min_n_ops: 0
+  max_n_ops: 30
+  backends:
+    - aer_simulator
+    - aer_simulator_statevector
+    - aer_simulator_statevector_gpu
+    - aer_simulator_density_matrix
+    - aer_simulator_density_matrix_gpu
+    - aer_simulator_stabilizer
+    - aer_simulator_matrix_product_state
+    - aer_simulator_extended_stabilizer
+    #- aer_simulator_unitary
+    #- aer_simulator_unitary_gpu
+    #- aer_simulator_superop
+    - qasm_simulator
+    #- statevector_simulator
+    #- unitary_simulator
+    #- pulse_simulator
+  gate_set_dropout: 0.5
+  optimizations_dropout: 0.2
+  optimizations:
+    - Optimize1qGates
+    - Optimize1qGatesDecomposition
+    - Collect2qBlocks
+    - CollectMultiQBlocks
+    - ConsolidateBlocks
+    - CommutationAnalysis
+    - CommutativeCancellation
+    - CXCancellation
+    - Optimize1qGatesSimpleCommutation
+    - OptimizeSwapBeforeMeasure
+    - RemoveResetInZeroState
+    - RemoveDiagonalGatesBeforeMeasure
+    - CrosstalkAdaptiveSchedule
+    - HoareOptimizer
+    - TemplateOptimization
+    - InverseCancellation
+    - Collect1qRuns
+    - EchoRZXWeylDecomposition
+  gate_set:
+    - name: C3XGate
+      n_bits: 3
+      n_params: 1
+    # NOT CLEAR HOW MANY BITS OR IF IT NEEDS ADDITIONAL CONTROL BITS
+    #- name: C3SXGate
+    #  n_bits: 4
+    #  n_params: 0
+    - name: C4XGate
+      n_bits: 4
+      n_params: 0
+    - name: CCXGate
+      n_bits: 3
+      n_params: 0
+    - name: DCXGate
+      n_bits: 2
+      n_params: 0
+    - name: CHGate
+      n_bits: 2
+      n_params: 0
+    - name: CPhaseGate
+      n_bits: 2
+      n_params: 1
+    - name: CRXGate
+      n_bits: 2
+      n_params: 1
+    - name: CRYGate
+      n_bits: 2
+      n_params: 1
+    - name: CRZGate
+      n_bits: 2
+      n_params: 1
+    - name: CSwapGate
+      n_bits: 3
+      n_params: 0
+    - name: CSXGate
+      n_bits: 2
+      n_params: 0
+    - name: CUGate
+      n_bits: 2
+      n_params: 4
+    - name: CU1Gate
+      n_bits: 2
+      n_params: 1
+    - name: CU3Gate
+      n_bits: 2
+      n_params: 3
+    - name: CXGate
+      n_bits: 2
+      n_params: 0
+    - name: CYGate
+      n_bits: 2
+      n_params: 0
+    - name: CZGate
+      n_bits: 2
+      n_params: 0
+    - name: HGate
+      n_bits: 1
+      n_params: 0
+    - name: IGate
+      n_bits: 1
+      n_params: 0
+    # DEPRECATED
+    #- name: MSGate
+    #  n_bits: 0
+    #  n_params: 0
+    # ADVANCED - N-bits
+    #- name: MCPhaseGate
+    #  n_bits: 0
+    #  n_params: 0
+    - name: PhaseGate
+      n_bits: 1
+      n_params: 1
+    - name: RCCXGate
+      n_bits: 3
+      n_params: 0
+    - name: RC3XGate
+      n_bits: 4
+      n_params: 0
+    - name: RXGate
+      n_bits: 1
+      n_params: 1
+    - name: RXXGate
+      n_bits: 2
+      n_params: 1
+    - name: RYGate
+      n_bits: 1
+      n_params: 1
+    - name: RYYGate
+      n_bits: 2
+      n_params: 1
+    - name: RZGate
+      n_bits: 1
+      n_params: 1
+    - name: RZZGate
+      n_bits: 2
+      n_params: 1
+    - name: RZXGate
+      n_bits: 2
+      n_params: 1
+    # NOT IN DOC: https://qiskit.org/documentation/apidoc/circuit_library.html
+    #- name: XYGate
+    #  n_bits:
+    #  n_params: 0
+    - name: ECRGate
+      n_bits: 2
+      n_params: 0
+    - name: SGate
+      n_bits: 1
+      n_params: 0
+    - name: SdgGate
+      n_bits: 1
+      n_params: 0
+    - name: SwapGate
+      n_bits: 2
+      n_params: 0
+    - name: iSwapGate
+      n_bits: 2
+      n_params: 0
+    - name: SXGate
+      n_bits: 1
+      n_params: 0
+    - name: SXdgGate
+      n_bits: 1
+      n_params: 0
+    - name: TGate
+      n_bits: 1
+      n_params: 0
+    - name: TdgGate
+      n_bits: 1
+      n_params: 0
+    - name: UGate
+      n_bits: 1
+      n_params: 3
+    - name: U1Gate
+      n_bits: 1
+      n_params: 1
+    - name: U2Gate
+      n_bits: 1
+      n_params: 2
+    - name: U3Gate
+      n_bits: 1
+      n_params: 3
+    - name: XGate
+      n_bits: 1
+      n_params: 0
+    - name: YGate
+      n_bits: 1
+      n_params: 0
+    - name: ZGate
+      n_bits: 1
+      n_params: 0
+
+# PLATFORMS
+platforms:
+  - name: qiskit
+    format: qiskit
+  - name: cirq
+    format: cirq
+
+# SUBFOLDER STRUCTURE
+folder_structure:
+  programs:
+    metadata: null
+    source: null
+    followup: null
+
+# BUDGET
+budget_time: null  # SECONDS: null for continuous running
+
+
+# DEBUGGER
+max_runs_per_suspect_bug: 10
+max_seconds_per_suspect_bug: 120
+update_db_every_n_programs: 1
+
+primary_detector_for_debug: ks
