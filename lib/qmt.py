@@ -41,7 +41,7 @@ from qfl import setup_environment
 from qfl import scan_for_divergence
 from qfl import detect_divergence
 
-from metamorph import mr_change_backend
+from metamorph import *
 
 
 def dump_all_metadata(

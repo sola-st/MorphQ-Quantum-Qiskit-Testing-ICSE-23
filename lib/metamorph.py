@@ -149,8 +149,10 @@ def mr_change_backend(source_code: str, available_backends: str) -> str:
                     isinstance(node.args[0], ast.Constant)):
                 if node.args[0].value in self.available_backends:
                     self.available_backends.remove(node.args[0].value)
-                print(f"Found: {node.args[0].value}")
-                node.args[0].value = np.random.choice(self.available_backends)
+                target_backend = np.random.choice(self.available_backends)
+                print(f"Follow: replace backend {node.args[0].value} -> " +
+                      f"{target_backend}")
+                node.args[0].value = target_backend
             return node
 
     backend_changer = BackendChanger(available_backends)
@@ -160,7 +162,72 @@ def mr_change_backend(source_code: str, available_backends: str) -> str:
 
     return reconstruct_sections(sections)
 
-def mr_change_basic_gates(source_code: str, basic_gates: List[str]) -> str:
+
+def mr_change_basis(source_code: str, universal_gate_sets: List[Dict[str, Any]]) -> str:
     """Change the basic gates used in the source code (via transpile).
     """
-    pass
+    target_gates = np.random.choice(universal_gate_sets)["gates"]
+    sections = get_sections(source_code)
+    opt_level_section = sections["OPTIMIZATION_LEVEL"]
+
+    tree = ast.parse(opt_level_section)
+
+    class BasisChanger(ast.NodeTransformer):
+
+        def __init__(self, target_gates: List[str]):
+            self.target_gates = target_gates
+
+        def visit_Call(self, node):
+            if (isinstance(node, ast.Call) and
+                    isinstance(node.func, ast.Name) and
+                    node.func.id == "transpile"):
+                args = [k.arg for k in node.keywords]
+                if "basis_gates" in args:
+                    idx = args.index("basis_gates")
+                    node.keywords[idx].value = ast.List(elts=[
+                        ast.Constant(g_name) for g_name in self.target_gates
+                    ])
+                    print("Follow: gateset replaced with: ", self.target_gates)
+            return node
+
+    changer = BasisChanger(target_gates)
+    modified_tree = changer.visit(tree)
+    changed_section = to_code(modified_tree)
+    sections["OPTIMIZATION_LEVEL"] = changed_section
+
+    return reconstruct_sections(sections)
+
+
+def mr_change_opt_level(source_code: str, levels: List[int]) -> str:
+    """Change the basic gates used in the source code (via transpile).
+    """
+
+    sections = get_sections(source_code)
+    opt_level_section = sections["OPTIMIZATION_LEVEL"]
+
+    tree = ast.parse(opt_level_section)
+
+    class OptLevelChanger(ast.NodeTransformer):
+
+        def __init__(self, levels: int):
+            self.levels = deepcopy(levels)
+
+        def visit_Call(self, node):
+            if (isinstance(node, ast.Call) and
+                    isinstance(node.func, ast.Name) and
+                    node.func.id == "transpile"):
+                args = [k.arg for k in node.keywords]
+                if "optimization_level" in args:
+                    initial_level = node.keywords[args.index("optimization_level")].value.value
+                    self.levels.remove(initial_level)
+                    target_opt_level = int(np.random.choice(self.levels))
+                    node.keywords[args.index("basis_gates")].value = ast.Constant(target_opt_level)
+                    print(f"Follow: optimization level changed: {initial_level} -> {target_opt_level}")
+            return node
+
+    changer = OptLevelChanger(levels)
+    modified_tree = changer.visit(tree)
+    changed_section = to_code(modified_tree)
+    sections["OPTIMIZATION_LEVEL"] = changed_section
+
+    return reconstruct_sections(sections)
