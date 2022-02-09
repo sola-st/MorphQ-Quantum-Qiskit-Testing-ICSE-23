@@ -36,7 +36,9 @@ class Fuzzer(ABC):
             n_ops: int,
             optimizations: List[str],
             backend: str,
-            shots: int):
+            shots: int,
+            level_auto_optimization: int,
+            target_gates: List[str]):
         py_file = ""
         py_file += self.circuit_prologue()
         circuit, metadata_circuit = self.generate_circuit_via_atomic_ops(
@@ -44,9 +46,13 @@ class Fuzzer(ABC):
             force_circuit_identifier="qc", force_register_identifier="qr"
         )
         py_file += circuit
-        py_file += self.circuit_optimization(
+        py_file += self.circuit_optimization_passes(
             id_target_circuit=metadata_circuit["circuit_id"],
             optimizations=optimizations)
+        py_file += self.circuit_optimization_levels(
+            id_target_circuit=metadata_circuit["circuit_id"],
+            level=level_auto_optimization,
+            target_gate_set=target_gates)
         py_file += self.register_measure(
             id_target_circuit=metadata_circuit["circuit_id"],
             id_quantum_reg=metadata_circuit["id_quantum_reg"],
@@ -63,7 +69,11 @@ class Fuzzer(ABC):
         pass
 
     @abstractmethod
-    def circuit_optimization(self, id_target_circuit: str, optimizations: List[str]):
+    def circuit_optimization_passes(self, id_target_circuit: str, optimizations: List[str]):
+        pass
+
+    @abstractmethod
+    def circuit_optimization_levels(self, id_target_circuit: str, level: int, target_gate_set: List[str] = None):
         pass
 
     @abstractmethod
@@ -85,8 +95,8 @@ class QiskitFuzzer(Fuzzer):
         prologue += "from qiskit.circuit.library.standard_gates import *\n"
         return prologue
 
-    def circuit_optimization(self, id_target_circuit: str, optimizations: List[str]):
-        optimization = "\n# SECTION\n# NAME: OPTIMIZATION\n\n"
+    def circuit_optimization_passes(self, id_target_circuit: str, optimizations: List[str]):
+        optimization = "\n# SECTION\n# NAME: OPTIMIZATION_PASSES\n\n"
         optimization += "from qiskit.transpiler import PassManager\n"
         optimization += "from qiskit.transpiler.passes import *\n"
         optimization += "passmanager = PassManager()\n"
@@ -94,6 +104,13 @@ class QiskitFuzzer(Fuzzer):
             optimization += f"passmanager.append({opt}())\n"
         optimization += f"{id_target_circuit} = passmanager.run({id_target_circuit})\n"
         return optimization
+
+    def circuit_optimization_levels(self, id_target_circuit: str, level: int, target_gate_set: List[str] = None):
+        optimization = "\n# SECTION\n# NAME: OPTIMIZATION_LEVEL\n\n"
+        optimization += "from qiskit import transpile\n"
+        optimization += f"{id_target_circuit} = transpile({id_target_circuit}, basis_gates={target_gate_set}, optimization_level={level})\n"
+        return optimization
+
 
     def register_measure(self, id_target_circuit: str, id_quantum_reg: str, id_classical_reg: str):
         measurement = f"\n# SECTION\n# NAME: MEASUREMENT\n\n"

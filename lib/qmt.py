@@ -12,11 +12,12 @@ import random
 import click
 import multiprocessing
 import time
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Callable
 import json
 from os.path import join
 import uuid
 import pandas as pd
+from sklearn import exceptions
 
 from utils import break_function_with_timeout
 from utils import load_config_and_check
@@ -40,25 +41,20 @@ from qfl import setup_environment
 from qfl import scan_for_divergence
 from qfl import detect_divergence
 
-
-from metamorph import change_backend
+from metamorph import mr_change_backend
 
 
 def dump_all_metadata(
-        out_folder, program_id, exec, div, **kwargs):
+        out_folder, program_id, **kwargs):
     """Dump all metadata."""
     all_metadata = {
         "program_id": program_id,
-        "divergence": div,
         **kwargs
     }
     dump_metadata(
         all_metadata,
         join(out_folder, f"{program_id}.json"),
         to_indent=True)
-    dump_metadata(
-        exec,
-        join(out_folder, f"{program_id}_exec.json"))
     return all_metadata
 
 
@@ -99,6 +95,12 @@ def fuzz_source_program(
     n_ops = random.randint(
             config_generation["min_n_ops"],
             config_generation["max_n_ops"])
+    opt_level = int(np.random.choice(config_generation["optimization_levels"]))
+    #target_gates = np.random.choice(config_generation["universal_gate_sets"])["gates"]
+    target_gates = None
+    #print("target_gates: ", target_gates)
+    #print(type(target_gates))
+
     shots = estimate_n_samples_needed(
         config, n_measured_qubits=n_qubits)
 
@@ -108,7 +110,9 @@ def fuzz_source_program(
         n_ops=n_ops,
         optimizations=selected_optimizations,
         backend=np.random.choice(config_generation["backends"]),
-        shots=shots)
+        shots=shots,
+        level_auto_optimization=opt_level,
+        target_gates=target_gates)
 
     program_id = uuid.uuid4().hex
     py_file_path = join(experiment_folder, "programs", "source", f"{program_id}.py")
@@ -122,6 +126,8 @@ def fuzz_source_program(
         'shots': shots,
         'n_qubits': n_qubits,
         'n_ops': n_ops,
+        'opt_level': opt_level,
+        'target_gates': target_gates,
         'py_file_path': py_file_path,
         **metadata
     }
@@ -132,36 +138,44 @@ def execute_programs(
         metadata_source:  Dict[str, Any],
         metadata_followup: Dict[str, Any]):
     """Execute programs and return the metadata with results."""
-    exceptions = {}
+    exceptions = {'source': None, 'followup': None}
     try:
         res_a = execute_single_py_program(metadata_source["py_file_path"])
     except Exception as e:
-        exceptions['exceptions_source'] = str(e)
+        exceptions['source'] = str(e)
         res_a = {"0": 1}
     try:
         res_b = execute_single_py_program(metadata_followup["py_file_path"])
     except Exception as e:
-        exceptions['exceptions_followup'] = str(e)
+        exceptions['followup'] = str(e)
         res_b = {"0": 1}
     if len(exceptions.items()) > 0:
-        print("Crash found.")
+        print("Crash found. Exception: ", exceptions)
     exec_metadata = {
         "res_A": res_a,
         "platform_A": "source",
         "res_B": res_b,
         "platform_B": "follow_up",
-        **exceptions
+        "exceptions": exceptions
     }
     return exec_metadata
 
 
-def metamorph_backend(metadata: Dict[str, Any], config: Dict[str, Any]):
+def get_mr_function_and_kwargs(config: Dict[str, Any], metamorphic_strategy: str) -> Tuple[Callable, Dict[str, Any]]:
+    """Get the metamorphic function and its argument of a specific strategy."""
+    possible_strategies = config["metamorphic_strategies"]
+    selected_strategy = [
+        s for s in possible_strategies if s["name"] == metamorphic_strategy][0]
+    return eval(selected_strategy["function"]), selected_strategy["kwargs"]
+
+
+def create_follow(metadata: Dict[str, Any], config: Dict[str, Any],
+                  metamorphic_strategy: str):
     """Change the backend of the passed pyfile."""
     filepath = metadata["py_file_path"]
     file_content = open(filepath, "r").read()
-    metamorphed_file_content = change_backend(
-        source_code=file_content,
-        available_backends=config["generation_strategy"]["backends"])
+    mr_function, kwargs = get_mr_function_and_kwargs(config, metamorphic_strategy)
+    metamorphed_file_content = mr_function(source_code=file_content, **kwargs)
     experiment_folder = config["experiment_folder"]
     program_id = metadata["program_id"]
     new_filepath = join(experiment_folder, "programs", "followup", f"{program_id}.py")
@@ -186,7 +200,9 @@ def loop(config):
             experiment_folder=experiment_folder,
             config_generation=config["generation_strategy"],
             config=config)
-        metadata_followup = metamorph_backend(metadata_source, config)
+        metadata_followup = create_follow(
+            metadata_source, config, metamorphic_strategy="change_backend")
+        print(f"Executing: {program_id}")
         exec_metadata = execute_programs(
             metadata_source=metadata_source,
             metadata_followup=metadata_followup)
@@ -194,7 +210,10 @@ def loop(config):
         all_metadata = dump_all_metadata(
             out_folder=join(experiment_folder, "programs", "metadata"),
             program_id=program_id, source=metadata_source, followup=metadata_followup,
-            exec=exec_metadata, div=div_metadata)
+            divergence=div_metadata, exceptions=exec_metadata["exceptions"])
+        dump_metadata(
+            metadata=exec_metadata,
+            metadata_filepath=join(experiment_folder, "programs", "metadata_exec", f"{program_id}.json"))
         con = get_database_connection(config, "qfl.db")
         update_database(con, table_name="QFLDATA", record=all_metadata)
         scan_for_divergence(config,
@@ -217,6 +236,7 @@ def start_loop(
             args=(config,)
         )
     else:
+        print("Starting loop... [no timer]")
         loop(config)
 
 

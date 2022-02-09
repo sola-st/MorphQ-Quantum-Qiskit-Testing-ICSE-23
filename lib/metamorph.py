@@ -32,7 +32,7 @@ def get_sections(circ_source_code: str) -> Dict[str, str]:
     of the section, and the value is the source code of the section.
     """
     section_contents = circ_source_code.split("# SECTION\n")
-    regex_name_extr = r"^# NAME:\s([a-zA-Z]+)\s"
+    regex_name_extr = r"^# NAME:\s([a-zA-Z_]+)\s"
     named_sections = {
         re.match(regex_name_extr, content).group(1): remove_comments(content)
         for content in section_contents
@@ -122,7 +122,7 @@ def to_code(node):
     )(node)
 
 
-def change_backend(source_code: str, available_backends: str) -> str:
+def mr_change_backend(source_code: str, available_backends: str) -> str:
     """Change the backend used in the source code.
 
     Args:
@@ -159,3 +159,8 @@ def change_backend(source_code: str, available_backends: str) -> str:
     sections["EXECUTION"] = changed_section
 
     return reconstruct_sections(sections)
+
+def mr_change_basic_gates(source_code: str, basic_gates: List[str]) -> str:
+    """Change the basic gates used in the source code (via transpile).
+    """
+    pass
