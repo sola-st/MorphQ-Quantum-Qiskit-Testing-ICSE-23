@@ -66,7 +66,7 @@ class KS_Detector(Detector):
         """Compare two distributions with KS Test"""
         self.load_results(result_A, result_B)
         self.statistics, self.p_value = ks_2samp(self.samples_A, self.samples_B)
-        return self.statistics, self.p_value
+        return self.statistics, np.float64(self.p_value)
 
 
 

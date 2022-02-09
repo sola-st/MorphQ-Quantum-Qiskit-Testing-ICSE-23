@@ -122,7 +122,8 @@ class QiskitFuzzer(Fuzzer):
         execution += "from qiskit import Aer, transpile, execute\n"
         id_backend = "backend_" + str(uuid.uuid4().hex)
         execution += f"{id_backend} = Aer.get_backend('{backend}')\n"
-        execution += f"RESULT = execute({id_target_circuit}, backend={id_backend}, shots={shots}).result().get_counts({id_target_circuit})"
+        execution += f"counts = execute({id_target_circuit}, backend={id_backend}, shots={shots}).result().get_counts({id_target_circuit})\n"
+        execution += f"RESULT = counts"
         return execution
 
     def _generate_n_params(self, n_params: int):

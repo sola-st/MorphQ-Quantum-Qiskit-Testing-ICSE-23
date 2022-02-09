@@ -25,6 +25,7 @@ from utils import create_folder_structure
 from utils import dump_metadata
 from utils import convert_single_program
 from utils import run_single_program_in_memory
+from utils import iterdict_types
 
 from utils_db import get_database_connection
 from utils_db import update_database
@@ -51,10 +52,15 @@ def dump_all_metadata(
         "program_id": program_id,
         **kwargs
     }
-    dump_metadata(
-        all_metadata,
-        join(out_folder, f"{program_id}.json"),
-        to_indent=True)
+    try:
+        dump_metadata(
+            all_metadata,
+            join(out_folder, f"{program_id}.json"),
+            to_indent=True)
+    except Exception as e:
+        print(all_metadata)
+        iterdict_types(all_metadata)
+        raise e
     return all_metadata
 
 
@@ -96,10 +102,7 @@ def fuzz_source_program(
             config_generation["min_n_ops"],
             config_generation["max_n_ops"])
     opt_level = int(np.random.choice(config_generation["optimization_levels"]))
-    #target_gates = np.random.choice(config_generation["universal_gate_sets"])["gates"]
     target_gates = None
-    #print("target_gates: ", target_gates)
-    #print(type(target_gates))
 
     shots = estimate_n_samples_needed(
         config, n_measured_qubits=n_qubits)
@@ -175,15 +178,53 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any],
     filepath = metadata["py_file_path"]
     file_content = open(filepath, "r").read()
     mr_function, kwargs = get_mr_function_and_kwargs(config, metamorphic_strategy)
-    metamorphed_file_content = mr_function(source_code=file_content, **kwargs)
+    metamorphed_file_content, mr_metadata = mr_function(source_code=file_content, **kwargs)
     experiment_folder = config["experiment_folder"]
     program_id = metadata["program_id"]
     new_filepath = join(experiment_folder, "programs", "followup", f"{program_id}.py")
     with open(new_filepath, "w") as f:
         f.write(metamorphed_file_content)
-    new_metadata = {**metadata}
+    new_metadata = {**metadata, }
     new_metadata["py_file_path"] = new_filepath
+    new_metadata["metamorphic_info"] = mr_metadata
+    new_metadata["metamorphic_strategy"] = metamorphic_strategy
     return new_metadata
+
+
+def produce_and_test_single_program_couple(config, generator):
+    """Fuzz a program and morph it, run both."""
+    experiment_folder = config["experiment_folder"]
+    program_id, metadata_source = fuzz_source_program(
+        generator,
+        experiment_folder=experiment_folder,
+        config_generation=config["generation_strategy"],
+        config=config)
+    chosen_strategy = np.random.choice(
+        [s['name'] for s in config["metamorphic_strategies"]])
+    metadata_followup = create_follow(
+        metadata_source, config, metamorphic_strategy=chosen_strategy)
+    print(f"Executing: {program_id}")
+    exec_metadata = execute_programs(
+        metadata_source=metadata_source,
+        metadata_followup=metadata_followup)
+    div_metadata = detect_divergence(exec_metadata, detectors=config["detectors"])
+    all_metadata = dump_all_metadata(
+        out_folder=join(experiment_folder, "programs", "metadata"),
+        program_id=program_id, source=metadata_source, followup=metadata_followup,
+        divergence=div_metadata, exceptions=exec_metadata["exceptions"])
+    dump_metadata(
+        metadata=exec_metadata,
+        metadata_filepath=join(experiment_folder, "programs", "metadata_exec", f"{program_id}.json"))
+    con = get_database_connection(config, "qfl.db")
+    # remove metamorphic info because they are not uniform to the
+    # table schema for all the relationships
+    if "metamorphic_info" in all_metadata["followup"].keys():
+        del all_metadata["followup"]["metamorphic_info"]
+    update_database(con, table_name="QFLDATA", record=all_metadata)
+    scan_for_divergence(config,
+                        method=config["divergence_threshold_method"],
+                        test_name=config["divergence_primary_test"],
+                        alpha_level=config["divergence_alpha_level"])
 
 
 # LEVEL 2:
@@ -191,35 +232,21 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any],
 
 def loop(config):
     """Start fuzzing loop."""
-    config_generation = config["generation_strategy"]
-    experiment_folder = config["experiment_folder"]
-    generator = eval(config_generation["generator_object"])()
+    generator = eval(config["generation_strategy"]["generator_object"])()
+    budget_time = config["budget_time_per_program_couple"]
     while True:
-        program_id, metadata_source = fuzz_source_program(
-            generator,
-            experiment_folder=experiment_folder,
-            config_generation=config["generation_strategy"],
-            config=config)
-        metadata_followup = create_follow(
-            metadata_source, config, metamorphic_strategy="change_backend")
-        print(f"Executing: {program_id}")
-        exec_metadata = execute_programs(
-            metadata_source=metadata_source,
-            metadata_followup=metadata_followup)
-        div_metadata = detect_divergence(exec_metadata, detectors=config["detectors"])
-        all_metadata = dump_all_metadata(
-            out_folder=join(experiment_folder, "programs", "metadata"),
-            program_id=program_id, source=metadata_source, followup=metadata_followup,
-            divergence=div_metadata, exceptions=exec_metadata["exceptions"])
-        dump_metadata(
-            metadata=exec_metadata,
-            metadata_filepath=join(experiment_folder, "programs", "metadata_exec", f"{program_id}.json"))
-        con = get_database_connection(config, "qfl.db")
-        update_database(con, table_name="QFLDATA", record=all_metadata)
-        scan_for_divergence(config,
-                            method=config["divergence_threshold_method"],
-                            test_name=config["divergence_primary_test"],
-                            alpha_level=config["divergence_alpha_level"])
+        if budget_time is not None:
+            print(f"New program couple... [timer: {budget_time} sec]")
+            break_function_with_timeout(
+                routine=produce_and_test_single_program_couple,
+                seconds_to_wait=budget_time,
+                message="Change 'budget_time_per_program_couple' in config yaml file.",
+                args=(config, generator)
+            )
+        else:
+            print("New program couple.. [no timer]")
+            produce_and_test_single_program_couple(config, generator)
+
 
 # LEVEL 1:
 

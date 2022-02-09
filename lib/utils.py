@@ -42,6 +42,14 @@ def dump_metadata(
             json.dump(metadata, f)
 
 
+def iterdict_types(d):
+    for k,v in d.items():
+        if isinstance(v, dict):
+            iterdict_types(v)
+        else:
+            print(f"{k} (type: {type(v)}): {v}")
+
+
 def load_multiple_json(program_id, folder):
     """Read all the json files refering to a specific program.
 
@@ -202,7 +210,7 @@ def break_function_with_timeout(
     p.join(seconds_to_wait)
     # If thread is active
     if p.is_alive():
-        print(f"Timeout over! Killing function: '{routine.__name__}'... " +
+        print(f"Timeout over ({seconds_to_wait} sec)! Killing function: '{routine.__name__}'... " +
               message)
         # Terminate foo
         p.terminate()

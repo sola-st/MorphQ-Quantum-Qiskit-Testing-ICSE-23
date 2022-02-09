@@ -194,3 +194,51 @@ class Inspector(object):
         sns.barplot(x="string", y="diff", data=df)
         plt.xticks(rotation=90)
         plt.show()
+
+
+class OneNightStandInspector(object):
+
+    def __init__(self, count_res_a, count_res_b, name_a='exec_a', name_b='exec_b', top_perc=.25, max_solutions=50, figsize=(10, 6)):
+        """Plot the histogram together for both platforms.
+
+        The histogram will contain the top_perc of the solutions or at max
+        a certain number of solutions (max_solution). Whatever is smaller.
+
+        Note that the top_perc is the percentage of the top solutions to plot.
+        """
+        df = convert_dict_to_df(
+            res_a=count_res_a,
+            res_b=count_res_b,
+            platform_a=name_a,
+            platform_b=name_b
+        )
+        # to compute with the full dataset
+        n_shots = df["counter"].sum() / 2  # because we have two platforms
+        max_value = df["counter"].max()
+        n_qubits = len(str(df.iloc[0]["string"]))
+
+        df = self._cap_top_perc(df, top_perc)
+        if len(df) > max_solutions:
+            df = df.iloc[:max_solutions]
+
+        print(f"n_qubits: {n_qubits}")
+        print(f"n_shots: {n_shots}")
+        uniform_threshold = ((1 / (2 ** n_qubits)) * n_shots)
+        print(f"Uniform threshold: {uniform_threshold}")
+        plt.figure(figsize=figsize)
+        sns.barplot(x="string", hue="name", y="counter", data=df)
+        if uniform_threshold < max_value * 1.1:
+            plt.axhline(y=uniform_threshold, color="red", linestyle="--")
+        else:
+            plt.gca().set_facecolor("violet")
+        # rotate labels 90
+        plt.xticks(rotation=90)
+        plt.show()
+
+    def _cap_top_perc(self, df, top_perc):
+        df_grouped = df.groupby(["string"])["counter"].max().reset_index()
+        df_grouped = df_grouped.sort_values(by="counter", ascending=False)
+        all_strings_appeared = df_grouped["string"].tolist()
+        strings_to_remove = all_strings_appeared[int(len(df) * top_perc):]
+        df = df[~df["string"].isin(strings_to_remove)]
+        return df

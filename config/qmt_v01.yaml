@@ -1,9 +1,10 @@
-# Run the Quantum Fuzzy Lop on a file
-# use the qdiff threshold to compute the number of samples needed
-# use the creation of circuits with many more gates.
-# sample from a subselection of those gate (dropout parameter)
-# use the native APIs of Qiskit and Cirq to parse the qasm
+# Run the Quantum Metamorphic Testing
 
+# This file can enable the following metamorphic relationships:
+# - change_backend
+# - change_basis
+# - change_opt_level
+# - change_qubit_order
 
 # EXECUTABLE PATH
 qconvert_path: ../node_converter/qconvert-js/cli.js
@@ -296,17 +297,27 @@ metamorphic_strategies:
         - aer_simulator
         - aer_simulator_statevector
         - aer_simulator_statevector_gpu
-        #- aer_simulator_density_matrix
+        - statevector_simulator
+        - aer_simulator_density_matrix
         - aer_simulator_density_matrix_gpu
-        - aer_simulator_stabilizer
-        - aer_simulator_matrix_product_state
+        # the stabilizer simulator works only if the circuit can be decomposed
+        # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
+        #- aer_simulator_stabilizer
         #- aer_simulator_extended_stabilizer
+        - aer_simulator_matrix_product_state
+        # the unitary simulators are exponential in the number of qubits.
         #- aer_simulator_unitary
         #- aer_simulator_unitary_gpu
-        #- aer_simulator_superop
-        #- qasm_simulator
-        #- statevector_simulator
         #- unitary_simulator
+        # From Qiskit doc:
+        # "A dense superoperator matrix simulation of an ideal or noisy circuit.
+        # This simulates the superoperator matrix of the circuit itself rather
+        # than the evolution of an initial quantum state. This method can
+        # simulate ideal and noisy gates, and reset, but does not support
+        # measurement.""
+        # QiskitError: 'Data for experiment "qc" could not be found.'
+        #- aer_simulator_superop
+        - qasm_simulator
         #- pulse_simulator
   - name: change_basis
     function: mr_change_basis
@@ -334,7 +345,10 @@ metamorphic_strategies:
         - 1
         - 2
         - 3
-
+  - name: change_qubit_order
+    function: mr_change_qubit_order
+    kwargs:
+      scramble_percentage: 0.5
 
 
 
@@ -355,7 +369,7 @@ folder_structure:
 
 # BUDGET
 budget_time: null  # SECONDS: null for continuous running
-
+budget_time_per_program_couple: 120 # SECONDS: null for continuous running
 
 # DEBUGGER
 max_runs_per_suspect_bug: 10

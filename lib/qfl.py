@@ -97,6 +97,7 @@ def scan_for_divergence(config: Dict[str, Any], test_name: str = 'ks',
     pval_col = f"divergence.{test_name}.p-value"
     df_sorted_pvals = df.sort_values(by=[pval_col])
     k = len(df_sorted_pvals)
+    i_star = None
     for i, (idx, row) in enumerate(df_sorted_pvals.iterrows()):
         ordinal_i = i + 1
         P_i = row[pval_col]
@@ -111,7 +112,10 @@ def scan_for_divergence(config: Dict[str, Any], test_name: str = 'ks',
             i_star = i
             print(f"i*: {i_star}")
             break
-    df_divergent = df_sorted_pvals.iloc[:i_star]
+    if i_star is None:
+        df_divergent = df_sorted_pvals
+    else:
+        df_divergent = df_sorted_pvals.iloc[:i_star]
     all_program_ids = get_program_ids_in_table(con, table_name='DIVERGENCE')
     new_df_divergent = df_divergent[
         ~df_divergent["program_id"].isin(all_program_ids)]
