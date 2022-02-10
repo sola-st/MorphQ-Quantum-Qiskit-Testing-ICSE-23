@@ -108,7 +108,7 @@ class QiskitFuzzer(Fuzzer):
     def circuit_optimization_levels(self, id_target_circuit: str, level: int, target_gate_set: List[str] = None):
         optimization = "\n# SECTION\n# NAME: OPTIMIZATION_LEVEL\n\n"
         optimization += "from qiskit import transpile\n"
-        optimization += f"{id_target_circuit} = transpile({id_target_circuit}, basis_gates={target_gate_set}, optimization_level={level})\n"
+        optimization += f"{id_target_circuit} = transpile({id_target_circuit}, basis_gates={target_gate_set}, optimization_level={level}, coupling_map=None)\n"
         return optimization
 
 

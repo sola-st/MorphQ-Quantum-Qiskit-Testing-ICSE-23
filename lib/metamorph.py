@@ -2,7 +2,9 @@
 
 """
 
+import random
 import numpy as np
+import scipy
 
 import qiskit
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
@@ -40,6 +42,7 @@ def get_sections(circ_source_code: str) -> Dict[str, str]:
     }
     return named_sections
 
+
 def reconstruct_sections(sections: Dict[str, str]) -> str:
     """Reconstruct the source code from the sections.
 
@@ -54,6 +57,7 @@ def reconstruct_sections(sections: Dict[str, str]) -> str:
         reconstructed_source_code += f"# SECTION\n# NAME: {section_name}\n"
         reconstructed_source_code += section_content
     return reconstructed_source_code
+
 
 def remove_comments(source_code: str) -> str:
     """Remove comments from the source code via ast.
@@ -70,6 +74,77 @@ def create_random_mapping(qubit_indices: List[int]):
     target_qubits = deepcopy(qubit_indices)
     np.random.shuffle(target_qubits)
     return {int(k): int(v) for k, v in zip(qubit_indices, target_qubits)}
+
+
+def create_random_coupling_map(n_nodes: int,
+                               edge_density: float) -> List[List[int]]:
+    """Create a random coupling map."""
+    adjacency_matrix = scipy.sparse.random(
+        n_nodes, n_nodes, density=edge_density, format='coo')
+    return [[int(r), int(c)]
+            for (r, c) in zip(adjacency_matrix.row, adjacency_matrix.col)]
+
+
+def create_random_connected_coupling_map(
+        n_nodes: int, edge_density: float, force_symmetric: bool = True) -> List[List[int]]:
+    """Create a random coupling map which is connected.
+
+    Inspired by: https://stackoverflow.com/a/2041539/13585425
+    """
+    m = np.zeros((n_nodes, n_nodes), dtype=int)
+
+    # we remove n_nodes because we forbid the diagonal (self loops)
+    possible_edges = (n_nodes * n_nodes) - n_nodes
+
+    nodes_in_network = [0, 1]
+    m[0, 1] = 1
+    c_density = 1 / possible_edges
+
+    nodes_out_of_network = list(
+        set(list(range(n_nodes))).difference(set(nodes_in_network)))
+
+    while c_density < edge_density or len(nodes_out_of_network) > 0:
+        outgoing_edge = np.random.choice([True, False])
+
+        # master node
+        master_node = np.random.choice(nodes_in_network)
+        # print(master_node)
+        if outgoing_edge:
+            direction_to_look_for = m[:, master_node]
+        else:
+            direction_to_look_for = m[master_node, :]
+        if len(nodes_out_of_network) > 0:
+            # reason: we want to include all the nodes in the network first,
+            # then we care about density target
+            available_targets = nodes_out_of_network
+        else:
+            available_targets = list(np.argwhere(~np.array(
+                direction_to_look_for, dtype=bool)).flatten())
+        if master_node in available_targets:
+            # reason: to forbid self loops to be chosen
+            available_targets.remove(master_node)
+        if len(available_targets) > 0:
+            # print(f"available_targets: {available_targets}")
+            target_node = int(np.random.choice(available_targets))
+            # print(f"target_node: {target_node}")
+            if force_symmetric:
+                m[master_node][target_node] = 1
+                m[target_node][master_node] = 1
+            else:
+                if outgoing_edge:
+                    m[master_node][target_node] = 1
+                else:
+                    m[target_node][master_node] = 1
+        nodes_in_network.append(target_node)
+        nodes_out_of_network = list(
+            set(list(range(n_nodes))).difference(set(nodes_in_network)))
+        # print(m)
+        c_edges = np.sum(m)
+        c_density = float(c_edges) / possible_edges
+
+    adjacency_matrix = scipy.sparse.coo_matrix(m)
+    return [[int(r), int(c)] for (r, c) in zip(
+        adjacency_matrix.row, adjacency_matrix.col)]
 
 
 def get_registers_used(circ_definition: str) -> List[Dict[str, Any]]:
@@ -174,7 +249,8 @@ def mr_change_backend(source_code: str, available_backends: str) -> str:
     return reconstruct_sections(sections), mr_metadata
 
 
-def mr_change_basis(source_code: str, universal_gate_sets: List[Dict[str, Any]]) -> str:
+def mr_change_basis(source_code: str,
+                    universal_gate_sets: List[Dict[str, Any]]) -> str:
     """Change the basic gates used in the source code (via transpile).
     """
     target_gates = np.random.choice(universal_gate_sets)["gates"]
@@ -232,13 +308,16 @@ def mr_change_opt_level(source_code: str, levels: List[int]) -> str:
                     node.func.id == "transpile"):
                 args = [k.arg for k in node.keywords]
                 if "optimization_level" in args:
-                    initial_level = node.keywords[args.index("optimization_level")].value.value
+                    initial_level = node.keywords[
+                        args.index("optimization_level")].value.value
                     self.levels.remove(initial_level)
                     target_opt_level = int(np.random.choice(self.levels))
-                    node.keywords[args.index("optimization_level")].value = ast.Constant(target_opt_level)
+                    node.keywords[args.index("optimization_level")].value = \
+                        ast.Constant(target_opt_level)
                     mr_metadata["initial_level"] = int(initial_level)
                     mr_metadata["new_level"] = int(target_opt_level)
-                    print(f"Follow: optimization level changed: {initial_level} -> {target_opt_level}")
+                    print(f"Follow: optimization level changed:" +
+                          f" {initial_level} -> {target_opt_level}")
             return node
 
     changer = OptLevelChanger(levels)
@@ -249,7 +328,92 @@ def mr_change_opt_level(source_code: str, levels: List[int]) -> str:
     return reconstruct_sections(sections), mr_metadata
 
 
-def mr_change_qubit_order(source_code: str, scramble_percentage: int) -> str:
+def mr_change_coupling_map(source_code: str,
+                           min_perc_nodes: float,
+                           max_perc_nodes: float,
+                           min_connection_density: float,
+                           max_connection_density: float,
+                           force_connected: bool = True,
+                           force_symmetric: bool = True) -> str:
+    """Change the coupling map.
+
+
+    Note that the coupling map could be smaller or larger than the number of
+    qubits in the original circuit.
+
+    min_perc_nodes: defines the percentage reduction of the coupling map size
+    with respect to the number of qubits in the circuit.
+
+    max_perc_nodes: defines the percentage expansion of the coupling map size
+    with respect to the number of qubits in the circuit.
+
+    """
+    sections = get_sections(source_code)
+    opt_level_section = sections["OPTIMIZATION_LEVEL"]
+    mr_metadata = {}
+
+    tree = ast.parse(opt_level_section)
+
+    source_code_circuit = sections["CIRCUIT"]
+    registers = get_registers_used(source_code_circuit)
+    # we assume to have exactly one quantum and one classical register
+    # and they have the same number of qubits
+    quantum_reg = [r for r in registers
+                   if r["type"] == "QuantumRegister"][0]
+    classical_reg = [r for r in registers
+                     if r["type"] == "ClassicalRegister"][0]
+    assert(quantum_reg["size"] == classical_reg["size"])
+
+    n_bits_declared = quantum_reg["size"]
+    n_bits = random.randint(
+        int(n_bits_declared * min_perc_nodes),
+        int(n_bits_declared * max_perc_nodes)
+    )
+    edge_density = random.uniform(
+        min_connection_density, max_connection_density)
+
+    if n_bits > 1:
+        if force_connected:
+            rnd_coupling_map = create_random_connected_coupling_map(
+                n_nodes=n_bits, edge_density=edge_density,
+                force_symmetric=force_symmetric)
+        else:
+            rnd_coupling_map = create_random_coupling_map(
+                n_nodes=n_bits, edge_density=edge_density)
+    else:
+        rnd_coupling_map = [[e] for e in range(n_bits)]
+
+    mr_metadata["edge_density"] = edge_density
+    mr_metadata["new_coupling_map"] = rnd_coupling_map
+
+    class CouplingChanger(ast.NodeTransformer):
+
+        def __init__(self, new_coupling: List[List[int]]):
+            self.new_coupling = deepcopy(new_coupling)
+
+        def visit_Call(self, node):
+            if (isinstance(node, ast.Call) and
+                    isinstance(node.func, ast.Name) and
+                    node.func.id == "transpile"):
+                args = [k.arg for k in node.keywords]
+                if "coupling_map" in args:
+                    initial_map = \
+                        node.keywords[args.index("coupling_map")].value.value
+                    ast_list = ast.parse(str(self.new_coupling)).body[0].value
+                    node.keywords[args.index("coupling_map")].value = ast_list
+                    print(f"Follow: coupling map changed:" +
+                          f"{initial_map} -> {self.new_coupling}")
+            return node
+
+    changer = CouplingChanger(rnd_coupling_map)
+    modified_tree = changer.visit(tree)
+    changed_section = to_code(modified_tree)
+    sections["OPTIMIZATION_LEVEL"] = changed_section
+
+    return reconstruct_sections(sections), mr_metadata
+
+
+def mr_change_qubit_order(source_code: str, scramble_percentage: float) -> str:
     """Change the qubit order.
     """
     sections = get_sections(source_code)
@@ -260,8 +424,10 @@ def mr_change_qubit_order(source_code: str, scramble_percentage: int) -> str:
     registers = get_registers_used(source_code_circuit)
     # we assume to have exactly one quantum and one classical register
     # and they have the same number of qubits
-    quantum_reg = [r for r in registers if r["type"] == "QuantumRegister"][0]
-    classical_reg = [r for r in registers if r["type"] == "ClassicalRegister"][0]
+    quantum_reg = [r for r in registers
+                   if r["type"] == "QuantumRegister"][0]
+    classical_reg = [r for r in registers
+                     if r["type"] == "ClassicalRegister"][0]
     assert(quantum_reg["size"] == classical_reg["size"])
 
     n_idx = quantum_reg["size"]
