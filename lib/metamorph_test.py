@@ -1,6 +1,7 @@
 
 import pytest
-
+import ast
+import astpretty
 from qmt import get_mr_function_and_kwargs
 from metamorph import *
 
@@ -28,6 +29,11 @@ config = {
             'kwargs': {'scramble_percentage': 0.5}}
     ]
 }
+
+
+def show_tree(code: str):
+    tree = ast.parse(code)
+    astpretty.pprint(tree)
 
 
 def test_change_opt_level_w_basis_gate():
@@ -62,3 +68,4 @@ qc = passmanager.run(qc)
 from qiskit import transpile
 qc = transpile(qc, basis_gates=None, optimization_level=3)
 """
+

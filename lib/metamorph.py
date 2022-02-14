@@ -12,15 +12,20 @@ from qiskit import Aer, transpile
 from qiskit.tools.visualization import circuit_drawer
 from qiskit.quantum_info import state_fidelity
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 import re
 import ast
 import astunparse
+import uuid
 
 from importlib import import_module
 from sys import version_info
 
 from copy import deepcopy
+
+from generation_strategy_python import *
+from generation_strategy_python import Fuzzer
+import re
 
 
 def get_sections(circ_source_code: str) -> Dict[str, str]:
@@ -83,6 +88,33 @@ def create_random_coupling_map(n_nodes: int,
         n_nodes, n_nodes, density=edge_density, format='coo')
     return [[int(r), int(c)]
             for (r, c) in zip(adjacency_matrix.row, adjacency_matrix.col)]
+
+
+def create_circuit(id_quantum_reg: str = None,
+                   id_classical_reg: str = None,
+                   id_circuit: str = None,
+                   n_qubits: int = 1,
+                   n_ops: int = 1,
+                   gate_set: Dict[str, Any] = None,
+                   generator_name: str = None,
+                   only_circuit: bool = False):
+    """Create circuit.
+
+    Return its identifier name and the source code of the circuit.
+    """
+    generator: Fuzzer = eval(generator_name)()
+
+    source_code, metadata = generator.generate_circuit_via_atomic_ops(
+        gate_set=gate_set,
+        n_qubits=n_qubits,
+        n_ops=n_ops,
+        force_circuit_identifier=id_circuit,
+        force_classical_reg_identifier=id_classical_reg,
+        force_quantum_reg_identifier=id_quantum_reg,
+        only_circuit=only_circuit)
+
+    id_circuit = metadata["circuit_id"]
+    return id_circuit, source_code
 
 
 def create_random_connected_coupling_map(
@@ -188,6 +220,16 @@ def get_registers_used(circ_definition: str) -> List[Dict[str, Any]]:
     register_hunter = RegisterHunter("quantum")
     register_hunter.generic_visit(tree)
     return register_hunter.get_registers()
+
+
+def get_circuit_via_regex(circ_definition: str) -> str:
+    """Extract the identifier names of all the declared circuits.
+
+    """
+    m = re.search("([a-zA-Z_]*)\s=\sQuantumCircuit", circ_definition)
+    if m:
+        return m.group(1)
+    return None
 
 
 def to_code(node):
@@ -488,4 +530,64 @@ RESULT = counts
         "RESULT = counts",
         helper_function + conversion)
 
+    return reconstruct_sections(sections), mr_metadata
+
+
+def mr_inject_circuits_and_inverse(
+        source_code: str, min_n_ops: int, max_n_ops: int, gate_set: Dict[str, Any], fuzzer_object: str) -> str:
+    """Inject a subcircuit and its inverse with a null effect overall."""
+    sections = get_sections(source_code)
+    source_code_circuit = sections["CIRCUIT"]
+    mr_metadata = {}
+    registers = get_registers_used(source_code_circuit)
+    # we assume to have exactly one quantum and one classical register
+    # and they have the same number of qubits
+    quantum_reg = [r for r in registers
+                   if r["type"] == "QuantumRegister"][0]
+    classical_reg = [r for r in registers
+                     if r["type"] == "ClassicalRegister"][0]
+    assert(quantum_reg["size"] == classical_reg["size"])
+    n_bits_declared = quantum_reg["size"]
+
+    n_ops = np.random.randint(min_n_ops, max_n_ops)
+    mr_metadata["n_ops"] = n_ops
+    mr_metadata["fuzzer_object"] = fuzzer_object
+
+    id_sub_circuit, subcirc_source_code = create_circuit(
+        id_quantum_reg=quantum_reg['name'],
+        id_classical_reg=classical_reg['name'],
+        id_circuit="subcircuit",
+        n_qubits=n_bits_declared,
+        n_ops=n_ops,
+        gate_set=gate_set,
+        generator_name=fuzzer_object,
+        only_circuit=True)
+
+    main_circuit_id = get_circuit_via_regex(source_code_circuit)
+
+    if main_circuit_id is None:
+        raise Exception("Could not find main circuit id.")
+
+    all_lines = source_code_circuit.split("\n")
+    lines_to_inject = subcirc_source_code.split("\n")
+    # the generated circuit might contain the header of a new circuit section
+    # remove it by removing all comment lines
+    lines_to_inject = [line for line in lines_to_inject
+                       if not line.startswith("#")]
+    lines_to_inject.append(
+        f"{main_circuit_id}.append({id_sub_circuit}, qargs={quantum_reg['name']}, cargs={classical_reg['name']})")
+    lines_to_inject.append(
+        f"{main_circuit_id}.append({id_sub_circuit}.inverse(), qargs={quantum_reg['name']}, cargs={classical_reg['name']})")
+
+    mask_suitable_lines = [
+        line.startswith(f"{main_circuit_id}.append(")
+        for line in all_lines]
+    possible_insertion_points = np.where(np.array(mask_suitable_lines))[0]
+    insertion_point = np.random.choice(possible_insertion_points)
+
+    for injected_line in lines_to_inject[::-1]:
+        all_lines.insert(insertion_point, injected_line)
+
+    changed_section = "\n".join(all_lines)
+    sections["CIRCUIT"] = changed_section
     return reconstruct_sections(sections), mr_metadata
