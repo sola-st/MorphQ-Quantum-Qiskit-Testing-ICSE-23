@@ -222,6 +222,61 @@ def get_registers_used(circ_definition: str) -> List[Dict[str, Any]]:
     return register_hunter.get_registers()
 
 
+def get_circuits_used(circ_definition: str) -> List[Dict[str, Any]]:
+    """Extract the available quantum circuits and their registers.
+
+    For each quantum circuit in the main program report:
+    - the number of qubit used
+    - the identifier name
+    - the name of its quantum register
+    - the name of its classical register
+    """
+    tree = ast.parse(circ_definition)
+
+    registers = get_registers_used(circ_definition=circ_definition)
+
+    class CircuitHunter(ast.NodeVisitor):
+
+        def __init__(self):
+            self.circuits = []
+
+        def visit(self, node: ast.AST):
+            self.check_if_circuit(node)
+            for child in ast.iter_child_nodes(node):
+                self.visit(child)
+
+        def check_if_circuit(self, node: ast.AST):
+            if (isinstance(node, ast.Assign) and
+                    isinstance(node.value, ast.Call) and
+                    node.value.func.id == "QuantumCircuit" and
+                    not isinstance(node.value.args[0], ast.Constant) and
+                    not isinstance(node.value.args[1], ast.Constant)):
+                register_type = node.value.func.id
+                identifier = node.targets[0].id
+                quantum_register_identifier = node.value.args[0].id
+                classical_register_identifier = node.value.args[1].id
+                size_quantum_reg = [
+                    r for r in registers
+                    if r["name"] == quantum_register_identifier][0]["size"]
+                size_classical_reg = [
+                    r for r in registers
+                    if r["name"] == classical_register_identifier][0]["size"]
+                assert size_quantum_reg == size_classical_reg
+                self.circuits.append({
+                    "name": identifier,
+                    "quantum_register": quantum_register_identifier,
+                    "classical_register": classical_register_identifier,
+                    "size": size_quantum_reg
+                })
+
+        def get_circuits(self):
+            return self.circuits
+
+    circuit_hunter = CircuitHunter()
+    circuit_hunter.generic_visit(tree)
+    return circuit_hunter.get_circuits()
+
+
 def get_circuit_via_regex(circ_definition: str) -> str:
     """Extract the identifier names of all the declared circuits.
 
@@ -583,11 +638,72 @@ def mr_inject_circuits_and_inverse(
         line.startswith(f"{main_circuit_id}.append(")
         for line in all_lines]
     possible_insertion_points = np.where(np.array(mask_suitable_lines))[0]
-    insertion_point = np.random.choice(possible_insertion_points)
+    if len(possible_insertion_points) > 0:
+        # sometime the main generated circuit is empty
+        insertion_point = np.random.choice(possible_insertion_points)
+    else:
+        insertion_point = len(all_lines) - 1
 
     for injected_line in lines_to_inject[::-1]:
         all_lines.insert(insertion_point, injected_line)
 
     changed_section = "\n".join(all_lines)
     sections["CIRCUIT"] = changed_section
+    return reconstruct_sections(sections), mr_metadata
+
+
+def mr_run_partitions_and_aggregate(source_code: str, n_partitions: int):
+    """Run the n_partitions separately and aggregate.
+    """
+
+    sections = get_sections(source_code)
+    mr_metadata = {}
+
+    circuits = get_circuits_used(circ_definition=sections["CIRCUIT"])
+
+    # replace all the occurrences of qc_main
+    # with the same operation by on the partitions
+
+    main_circuit = [
+        c for c in circuits if "main" in c["name"]][0]
+
+    for sections_name in ["OPTIMIZATION_PASSES", "OPTIMIZATION_LEVEL", "MEASUREMENT", "EXECUTION"]:
+        c_section = sections[sections_name]
+        new_lines = [
+            line if main_circuit["name"] not in line else "\n".join([
+                line.replace(
+                    main_circuit["name"], f"qc_{i+1}").replace(
+                    main_circuit["quantum_register"], f"qr_{i+1}").replace(
+                    main_circuit["classical_register"], f"cr_{i+1}").replace(
+                    "counts =", f"counts_{i+1} =")
+                for i in range(n_partitions)
+            ])
+            for line in c_section.split("\n")
+        ]
+        new_section = "\n".join(new_lines)
+        sections[sections_name] = new_section
+
+    helper_function = '''
+from typing import Dict, List, Any
+from functools import reduce
+
+def reconstruct(counts: List[Dict[str, int]]):
+    """Pass the count results.
+
+    NB: list the circuit working on lower qubit indices first.
+    """
+    return reduce(lambda counts_1, counts_2: {
+        k2 + k1: v1 * v2 for k1, v1 in counts_1.items() for k2, v2 in counts_2.items()
+    }, counts)
+    '''
+
+    conversion = f'''
+counts = reconstruct([{", ".join(["counts_" + str(i+1) for i in range(n_partitions)])}])
+RESULT = counts
+    '''
+
+    sections["EXECUTION"] = sections["EXECUTION"].replace(
+        "RESULT = counts",
+        helper_function + conversion)
+
     return reconstruct_sections(sections), mr_metadata
