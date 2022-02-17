@@ -213,7 +213,16 @@ class OneNightStandInspector(object):
             platform_b=name_b
         )
         # to compute with the full dataset
-        n_shots = df["counter"].sum() / 2  # because we have two platforms
+        n_shots_platform_a = df.where(df["name"] == name_a)["counter"].sum()
+        n_shots_platform_b = df.where(df["name"] == name_b)["counter"].sum()
+        df_normalized = df.copy()
+        df_normalized["counter"] = df_normalized.apply(
+            lambda row:
+                row["counter"] / n_shots_platform_a
+                if row["name"] == name_a
+                else row["counter"] / n_shots_platform_b,
+            axis=1)
+        df = df_normalized
         max_value = df["counter"].max()
         n_qubits = len(str(df.iloc[0]["string"]))
 
@@ -222,8 +231,9 @@ class OneNightStandInspector(object):
             df = df.iloc[:max_solutions]
 
         print(f"n_qubits: {n_qubits}")
-        print(f"n_shots: {n_shots}")
-        uniform_threshold = ((1 / (2 ** n_qubits)) * n_shots)
+        print(f"n_shots_platform_a: {n_shots_platform_a}")
+        print(f"n_shots_platform_b: {n_shots_platform_b}")
+        uniform_threshold = ((1 / (2 ** n_qubits)))
         print(f"Uniform threshold: {uniform_threshold}")
         plt.figure(figsize=figsize)
         sns.barplot(x="string", hue="name", y="counter", data=df)

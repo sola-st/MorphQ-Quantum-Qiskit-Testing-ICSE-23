@@ -90,6 +90,21 @@ def create_random_coupling_map(n_nodes: int,
             for (r, c) in zip(adjacency_matrix.row, adjacency_matrix.col)]
 
 
+def create_empty_circuit(id_quantum_reg: str = None,
+                         id_classical_reg: str = None,
+                         id_circuit: str = None,
+                         n_qubits: int = 1):
+    """Create empty circuit.
+
+    Return its identifier name and the source code of the circuit.
+    """
+    source_code = "\n"
+    source_code += f"{id_quantum_reg} = QuantumRegister({n_qubits}, name='{id_quantum_reg}')\n"
+    source_code += f"{id_classical_reg} = ClassicalRegister({n_qubits}, name='{id_classical_reg}')\n"
+    source_code += f"{id_circuit} = QuantumCircuit({id_quantum_reg}, {id_classical_reg}, name='{id_circuit}')\n"
+    return source_code + "\n"
+
+
 def create_circuit(id_quantum_reg: str = None,
                    id_classical_reg: str = None,
                    id_circuit: str = None,
@@ -115,6 +130,35 @@ def create_circuit(id_quantum_reg: str = None,
 
     id_circuit = metadata["circuit_id"]
     return id_circuit, source_code
+
+
+def replace_identifier(source_code: str, identifier: str, replacement: str):
+    """Replace an identifier in the source code.
+
+    Args:
+        source_code: The source code of the circuit.
+        identifier: The identifier to be replaced.
+        replacement: The replacement for the identifier.
+
+    Returns:
+        The source code with the replacement.
+    """
+    tree = ast.parse(source_code)
+
+    class IdentifierReplacer(ast.NodeTransformer):
+
+        def __init__(self, identifier: str, replacement: str):
+            self.identifier = identifier
+            self.replacement = replacement
+
+        def visit_Name(self, node):
+            if (isinstance(node, ast.Name) and node.id == self.identifier):
+                node.id = self.replacement
+            return node
+
+    changer = IdentifierReplacer(identifier, replacement)
+    modified_tree = changer.visit(tree)
+    return to_code(modified_tree)
 
 
 def create_random_connected_coupling_map(
@@ -203,6 +247,7 @@ def get_registers_used(circ_definition: str) -> List[Dict[str, Any]]:
         def check_if_register(self, node: ast.AST):
             if (isinstance(node, ast.Assign) and
                     isinstance(node.value, ast.Call) and
+                    isinstance(node.value.func, ast.Name) and
                     node.value.func.id in [
                             "QuantumRegister", "ClassicalRegister"] and
                     isinstance(node.value.args[0], ast.Constant)):
@@ -248,6 +293,7 @@ def get_circuits_used(circ_definition: str) -> List[Dict[str, Any]]:
         def check_if_circuit(self, node: ast.AST):
             if (isinstance(node, ast.Assign) and
                     isinstance(node.value, ast.Call) and
+                    isinstance(node.value.func, ast.Name) and
                     node.value.func.id == "QuantumCircuit" and
                     not isinstance(node.value.args[0], ast.Constant) and
                     not isinstance(node.value.args[1], ast.Constant)):
@@ -707,3 +753,94 @@ RESULT = counts
         helper_function + conversion)
 
     return reconstruct_sections(sections), mr_metadata
+
+
+def mr_add_section_optimizations(source_code: str,
+                                 n_sections: int,
+                                 optimizations: List[Dict[str, Any]],
+                                 optimizations_per_sections: int = 1):
+    """Chunk circuit in sections and run different optimizations per section."""
+    main_circuit = get_circuits_used(source_code)[0]
+    code_sections = get_sections(source_code)
+    circuit_code = code_sections["CIRCUIT"]
+    optimization_code = code_sections["OPTIMIZATION_PASSES"]
+
+    mr_metadata = {}
+    mr_metadata["n_sections"] = n_sections
+    mr_metadata["optimizations"] = {}
+
+    code_lines = [
+        line for line in circuit_code.split("\n")
+        if line.startswith(f"{main_circuit['name']}.append(")
+    ]
+
+    mask_op_assignment = np.sort(np.random.choice(
+        np.arange(n_sections),
+        size=len(code_lines),
+        replace=True))
+
+    new_circuit_code = create_empty_circuit(
+        id_quantum_reg=main_circuit["quantum_register"],
+        id_classical_reg=main_circuit["classical_register"],
+        id_circuit=main_circuit["name"],
+        n_qubits=main_circuit["size"])
+
+    for i in range(n_sections):
+        i_circuit_id = "qc_" + str(i)
+        i_quantum_reg_id = "qr_" + str(i)
+        i_classical_reg_id = "cr_" + str(i)
+
+        i_circuit_code = create_empty_circuit(
+            id_quantum_reg=i_quantum_reg_id,
+            id_classical_reg=i_classical_reg_id,
+            id_circuit=i_circuit_id,
+            n_qubits=main_circuit["size"])
+        new_circuit_code += i_circuit_code
+
+        op_lines_of_circuit_i = [
+            line for line, line_owner in zip(code_lines, mask_op_assignment)
+            if line_owner == i
+        ]
+        for line in op_lines_of_circuit_i:
+            new_line = line
+            new_line = replace_identifier(
+                new_line,
+                identifier=main_circuit["name"], replacement=i_circuit_id)
+            new_line = replace_identifier(
+                new_line,
+                identifier=main_circuit["quantum_register"],
+                replacement=i_quantum_reg_id)
+            new_line = replace_identifier(
+                new_line,
+                identifier=main_circuit["classical_register"],
+                replacement=i_classical_reg_id)
+            new_circuit_code += new_line
+
+        optimization_code += "\npassmanager = PassManager()\n"
+        optimization_to_apply = np.random.choice(
+            optimizations, size=optimizations_per_sections, replace=False)
+        mr_metadata["optimizations"][i_circuit_id] = [
+            opt["name"] for opt in optimization_to_apply]
+        for opt in optimization_to_apply:
+            kwargs = opt.get("kwargs", None)
+            if "analysis_passes" in opt.keys() and opt["analysis_passes"]:
+                for analysis_pass in opt["analysis_passes"]:
+                    optimization_code += f"passmanager.append({analysis_pass}())\n"
+            if "kwargs" not in opt.keys() or opt["kwargs"] is None:
+                kwargs = {}
+            if "random_kwargs" in opt.keys() and opt["random_kwargs"]:
+                for k in opt["random_kwargs"].keys():
+                    available_arguments = opt["random_kwargs"][k]
+                    idx = np.random.choice(np.arange(len(available_arguments)))
+                    kwargs[k] = available_arguments[idx]
+            optimization_code += f"passmanager.append({opt['name']}(**{str(kwargs)}))\n"
+        optimization_code += f"{i_circuit_id} = passmanager.run({i_circuit_id})\n"
+
+    # concatenate the optimized sub-circuit sections
+    for i in range(n_sections):
+        i_circuit_id = "qc_" + str(i)
+        optimization_code += f'{main_circuit["name"]}.append({i_circuit_id}, qargs={main_circuit["quantum_register"]}, cargs={main_circuit["classical_register"]})\n'
+
+    code_sections["CIRCUIT"] = new_circuit_code
+    code_sections["OPTIMIZATION_PASSES"] = optimization_code
+    return reconstruct_sections(code_sections), mr_metadata
