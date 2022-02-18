@@ -362,6 +362,7 @@ class Explorer(object):
         yinterp = np.interp(xvals, x, y)
         #ax_ecdf.plot(xvals, yinterp, label=f"{variable} ECDF interpolated")
         ax_ecdf.legend()
+        ax_ecdf.set_title(f"{test_name} ECDF")
 
         # derivative of the ECDF
         dx = 4
@@ -375,9 +376,13 @@ class Explorer(object):
         ax_deriv.axvline(threshold_max_deriv, color='r', linestyle="--",
                          label=f"threshold (max derivative): {threshold_max_deriv}")
         ax_deriv.legend()
+        ax_deriv.set_title(f"{test_name} Derivative")
 
         return threshold_50_perc
 
+    def get_available_tests(self):
+        """Return the names of the available detectors."""
+        return list(self.df_backup_original["test"].unique())
 
     def get_mispredictions(self):
         return self.df_all[~self.df_all["correct_prediction"]]

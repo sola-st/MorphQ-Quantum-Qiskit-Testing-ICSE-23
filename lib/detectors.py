@@ -8,6 +8,8 @@ import numpy as np
 
 import torch
 from torch_two_sample import statistics_diff
+from scipy.spatial.distance import jensenshannon
+from inspector import convert_dict_to_df
 
 
 def obtain_raw_samples(summary_dict, representation='binary'):
@@ -67,6 +69,23 @@ class KS_Detector(Detector):
         self.load_results(result_A, result_B)
         self.statistics, self.p_value = ks_2samp(self.samples_A, self.samples_B)
         return self.statistics, np.float64(self.p_value)
+
+
+class JS_Detector(Detector):
+
+    def __init__(self):
+        self.name = "Jensen–Shannon Distance"
+
+    def check(self, result_A, result_B, random_seed=None):
+        """Compare two distributions with JS Distance"""
+        df = convert_dict_to_df(
+            result_A, result_B, platform_a='A', platform_b='B')
+        df = df.pivot(index='name', columns='string', values='counter')
+        df = df.fillna(0)
+        self.statistics = jensenshannon(p=list(df.loc["A"]), q=list(df.loc["B"]))
+        self.p_value = -1
+        return self.statistics, np.float64(self.p_value)
+
 
 
 

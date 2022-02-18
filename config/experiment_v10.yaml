@@ -77,9 +77,12 @@ platform_dependent_settings:
 
 # DETECTORS
 detectors:
-  - name: ks
-    test_long_name: Kolmogorov–Smirnov Test
-    detector_object: KS_Detector
+  # - name: ks
+  #   test_long_name: Kolmogorov–Smirnov Test
+  #   detector_object: KS_Detector
+  - name: js
+    test_long_name: Jensen–Shannon Distance
+    detector_object: JS_Detector
   #- name: energy
   #  test_long_name: Energy Test
   #  detector_object: Energy_Detector
