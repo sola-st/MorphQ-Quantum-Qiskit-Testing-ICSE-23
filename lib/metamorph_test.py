@@ -117,3 +117,31 @@ qc_main.draw(fold=-1)
         assert register in registers
     for register in registers:
         assert register in expected_registers
+
+
+def test_check_backend_presence_found():
+    res = check_function_call_in_code(source_code="""from qiskit import Aer, transpile, execute
+backend_6b62557ac33843e7a8245322cae17865 = Aer.get_backend('qasm_simulator')
+counts = execute(qc, backend=backend_6b62557ac33843e7a8245322cae17865, shots=692).result().get_counts(qc)
+RESULT = counts""", func_name="get_backend")
+    assert res, "The code analysis doesn't recognize get_backend API"
+
+
+def test_check_backend_presence_not_found():
+    res = check_function_call_in_code(source_code="""from qiskit import transpile
+qc = transpile(qc, basis_gates=None, optimization_level=3, coupling_map=None)""", func_name="get_backend")
+    assert not res, "The code analysis recognize get_backend API where there is not"
+
+
+def test_check_transpile_presence_not_found():
+    res = check_function_call_in_code(source_code="""from qiskit import Aer, transpile, execute
+backend_6b62557ac33843e7a8245322cae17865 = Aer.get_backend('qasm_simulator')
+counts = execute(qc, backend=backend_6b62557ac33843e7a8245322cae17865, shots=692).result().get_counts(qc)
+RESULT = counts""", func_name="transpile")
+    assert not res, "The code analysis recognize transpile API where there is not"
+
+
+def test_check_transpile_presence_found():
+    res = check_function_call_in_code(source_code="""from qiskit import transpile
+qc = transpile(qc, basis_gates=None, optimization_level=3, coupling_map=None)""", func_name="transpile")
+    assert res, "The code analysis doesn't recognize transpile API"

@@ -162,7 +162,8 @@ def replace_identifier(source_code: str, identifier: str, replacement: str):
 
 
 def create_random_connected_coupling_map(
-        n_nodes: int, edge_density: float, force_symmetric: bool = True) -> List[List[int]]:
+        n_nodes: int, edge_density: float,
+        force_symmetric: bool = True) -> List[List[int]]:
     """Create a random coupling map which is connected.
 
     Inspired by: https://stackoverflow.com/a/2041539/13585425
@@ -174,6 +175,8 @@ def create_random_connected_coupling_map(
 
     nodes_in_network = [0, 1]
     m[0, 1] = 1
+    if force_symmetric:
+        m[1, 0] = 1
     c_density = 1 / possible_edges
 
     nodes_out_of_network = list(
@@ -635,7 +638,8 @@ RESULT = counts
 
 
 def mr_inject_circuits_and_inverse(
-        source_code: str, min_n_ops: int, max_n_ops: int, gate_set: Dict[str, Any], fuzzer_object: str) -> str:
+        source_code: str, min_n_ops: int, max_n_ops: int,
+        gate_set: Dict[str, Any], fuzzer_object: str) -> str:
     """Inject a subcircuit and its inverse with a null effect overall."""
     sections = get_sections(source_code)
     source_code_circuit = sections["CIRCUIT"]
@@ -713,7 +717,8 @@ def mr_run_partitions_and_aggregate(source_code: str, n_partitions: int):
     main_circuit = [
         c for c in circuits if "main" in c["name"]][0]
 
-    for sections_name in ["OPTIMIZATION_PASSES", "OPTIMIZATION_LEVEL", "MEASUREMENT", "EXECUTION"]:
+    for sections_name in ["OPTIMIZATION_PASSES", "OPTIMIZATION_LEVEL",
+                          "MEASUREMENT", "EXECUTION"]:
         c_section = sections[sections_name]
         new_lines = [
             line if main_circuit["name"] not in line else "\n".join([
@@ -739,12 +744,14 @@ def reconstruct(counts: List[Dict[str, int]]):
     NB: list the circuit working on lower qubit indices first.
     """
     return reduce(lambda counts_1, counts_2: {
-        k2 + k1: v1 * v2 for k1, v1 in counts_1.items() for k2, v2 in counts_2.items()
+        k2 + k1: v1 * v2 for k1, v1 in counts_1.items()
+        for k2, v2 in counts_2.items()
     }, counts)
     '''
 
     conversion = f'''
-counts = reconstruct([{", ".join(["counts_" + str(i+1) for i in range(n_partitions)])}])
+counts = reconstruct([{", ".join(["counts_" + str(i+1)
+                                  for i in range(n_partitions)])}])
 RESULT = counts
     '''
 
@@ -759,7 +766,7 @@ def mr_add_section_optimizations(source_code: str,
                                  n_sections: int,
                                  optimizations: List[Dict[str, Any]],
                                  optimizations_per_sections: int = 1):
-    """Chunk circuit in sections and run different optimizations per section."""
+    """Chunk circuit in sections and run different optimizations on them."""
     main_circuit = get_circuits_used(source_code)[0]
     code_sections = get_sections(source_code)
     circuit_code = code_sections["CIRCUIT"]
@@ -825,7 +832,8 @@ def mr_add_section_optimizations(source_code: str,
             kwargs = opt.get("kwargs", None)
             if "analysis_passes" in opt.keys() and opt["analysis_passes"]:
                 for analysis_pass in opt["analysis_passes"]:
-                    optimization_code += f"passmanager.append({analysis_pass}())\n"
+                    optimization_code += \
+                        f"passmanager.append({analysis_pass}())\n"
             if "kwargs" not in opt.keys() or opt["kwargs"] is None:
                 kwargs = {}
             if "random_kwargs" in opt.keys() and opt["random_kwargs"]:
@@ -833,8 +841,10 @@ def mr_add_section_optimizations(source_code: str,
                     available_arguments = opt["random_kwargs"][k]
                     idx = np.random.choice(np.arange(len(available_arguments)))
                     kwargs[k] = available_arguments[idx]
-            optimization_code += f"passmanager.append({opt['name']}(**{str(kwargs)}))\n"
-        optimization_code += f"{i_circuit_id} = passmanager.run({i_circuit_id})\n"
+            optimization_code += \
+                f"passmanager.append({opt['name']}(**{str(kwargs)}))\n"
+        optimization_code += \
+            f"{i_circuit_id} = passmanager.run({i_circuit_id})\n"
 
     # concatenate the optimized sub-circuit sections
     for i in range(n_sections):
@@ -844,3 +854,129 @@ def mr_add_section_optimizations(source_code: str,
     code_sections["CIRCUIT"] = new_circuit_code
     code_sections["OPTIMIZATION_PASSES"] = optimization_code
     return reconstruct_sections(code_sections), mr_metadata
+
+
+def check_separable_by_design(source_code: str):
+    """Check if a circuit is separable (easy way).
+
+    The easy way consists in checking if the circuit respect the structure
+    of the genarator of separable circuits.
+    Namely if there are three subcircuits, one main and two with sizes that
+    give the size of the main one when summed.
+    """
+    code_sections = get_sections(source_code)
+    circuit = code_sections["CIRCUIT"]
+
+    circuits_used = get_circuits_used(circuit)
+    main_circuits = [c for c in circuits_used if "main" in c["name"]]
+    other_circuits = [c for c in circuits_used if "main" not in c["name"]]
+    has_exactly_one_main = len(main_circuits) == 1
+
+    if not has_exactly_one_main:
+        return False
+
+    main_size = main_circuits[0]["size"]
+
+    other_circuits_sizes = [c["size"] for c in other_circuits]
+    sum_of_subcircuit_sizes = sum(other_circuits_sizes)
+
+    is_separable = sum_of_subcircuit_sizes == main_size
+    return is_separable
+
+
+def check_single_circuit(source_code: str):
+    """Check if the code has only one circuit in the program."""
+    code_sections = get_sections(source_code)
+    circuit = code_sections["CIRCUIT"]
+
+    circuits_used = get_circuits_used(circuit)
+    return len(circuits_used) == 1
+
+
+def check_get_backend(source_code: str):
+    """Check if the code uses the get_backend function call."""
+    return check_function_call_in_code(source_code, "get_backend")
+
+
+def check_transpile(source_code: str):
+    """Check if the code uses the transpile function call."""
+    return check_function_call_in_code(source_code, "transpile")
+
+
+def check_function_call_in_code(source_code: str, func_name: str):
+    """Check if the code has the specific function call."""
+    class FunctionDetector(ast.NodeVisitor):
+
+        def __init__(self, call_to_check: str):
+            self.call_to_check = call_to_check
+            self.found = False
+
+        def visit_Call(self, node):
+            if (isinstance(node, ast.Call) and (
+                    (isinstance(node.func, ast.Name) and
+                        node.func.id == self.call_to_check) or
+                    (isinstance(node.func, ast.Attribute) and
+                        node.func.attr == self.call_to_check))):
+                self.found = True
+
+    tree = ast.parse(source_code)
+    detector = FunctionDetector(call_to_check=func_name)
+    detector.visit(tree)
+    return detector.found
+
+
+class MetamorphicRelationship(object):
+
+    def __init__(self,
+                 name: str,
+                 function: str,
+                 kwargs: Dict[str, Any],
+                 pre_condition_functions: List[str] = None):
+        self.name = name
+        self.function = function
+        self.kwargs = kwargs
+        self.pre_condition_functions = pre_condition_functions
+        self.metadata = {}
+
+    def check_preconditions(self, source_code: str):
+        """Check if all the preconditions are satisfied.
+
+        If no condition is specified it is assumed to be satisfied.
+        """
+        if self.pre_condition_functions is None:
+            return True
+        satisfaction_of_conditions = []
+        if isinstance(self.pre_condition_functions, list):
+            for pre_condition_func in self.pre_condition_functions:
+                print(f"Checking precondition: {pre_condition_func}")
+                apply_func = eval(pre_condition_func)
+                satisfaction_of_conditions.append(apply_func(source_code))
+        return all(satisfaction_of_conditions)
+
+    def call(self, source_code: str):
+        """Apply the metamorphic relationship to the source code."""
+        print(f"Applying transformation: {self.name}")
+        new_source_code, metadata = self.function(source_code, **self.kwargs)
+        self.metadata = metadata
+        return new_source_code
+
+
+class Pipeline(object):
+
+    def __init__(self,
+                 metamorphic_relationships: List[MetamorphicRelationship]):
+        self.metamorphic_relationships = metamorphic_relationships
+
+    def run(self, source_code: str):
+        """Run the sequence of metamorphic relationships in sequence."""
+        n_transformations = len(self.metamorphic_relationships)
+        self.metadata = {}
+        for i, mr in enumerate(self.metamorphic_relationships):
+            print(f"Transformation {i+1}/{n_transformations} ({mr.name})")
+            is_mr_applicable = mr.check_preconditions(source_code)
+            if is_mr_applicable:
+                source_code = mr.call(source_code)
+                self.metadata[i] = mr.metadata
+            else:
+                print("Not applicable.")
+        return source_code

@@ -17,7 +17,6 @@ import json
 from os.path import join
 import uuid
 import pandas as pd
-from sklearn import exceptions
 
 from utils import break_function_with_timeout
 from utils import load_config_and_check
@@ -43,6 +42,8 @@ from qfl import scan_for_divergence
 from qfl import detect_divergence
 
 from metamorph import *
+from metamorph import MetamorphicRelationship
+from metamorph import Pipeline
 
 
 def dump_all_metadata(
@@ -86,14 +87,18 @@ def fuzz_source_program(
     selected_gate_set = config_generation["gate_set"]
     if config_generation["gate_set_dropout"] is not None:
         dropout = config_generation["gate_set_dropout"]
-        selected_gate_set = list(np.random.choice(selected_gate_set,
-            size=int(len(selected_gate_set) * dropout), replace=False))
+        selected_gate_set = list(np.random.choice(
+            selected_gate_set,
+            size=int(len(selected_gate_set) * dropout),
+            replace=False))
 
     selected_optimizations = config_generation["optimizations"]
     if config_generation["optimizations_dropout"] is not None:
         dropout = config_generation["optimizations_dropout"]
-        selected_optimizations = list(np.random.choice(selected_optimizations,
-            size=int(len(selected_optimizations) * dropout), replace=False))
+        selected_optimizations = list(np.random.choice(
+            selected_optimizations,
+            size=int(len(selected_optimizations) * dropout),
+            replace=False))
 
     n_qubits = random.randint(
             config_generation["min_n_qubits"],
@@ -118,7 +123,8 @@ def fuzz_source_program(
         target_gates=target_gates)
 
     program_id = uuid.uuid4().hex
-    py_file_path = join(experiment_folder, "programs", "source", f"{program_id}.py")
+    py_file_path = join(
+        experiment_folder, "programs", "source", f"{program_id}.py")
     with open(py_file_path, "w") as f:
         f.write(py_file_content)
 
@@ -164,7 +170,9 @@ def execute_programs(
     return exec_metadata
 
 
-def get_mr_function_and_kwargs(config: Dict[str, Any], metamorphic_strategy: str) -> Tuple[Callable, Dict[str, Any]]:
+def get_mr_function_and_kwargs(
+        config: Dict[str, Any],
+        metamorphic_strategy: str) -> Tuple[Callable, Dict[str, Any]]:
     """Get the metamorphic function and its argument of a specific strategy."""
     possible_strategies = config["metamorphic_strategies"]
     selected_strategy = [
@@ -172,22 +180,53 @@ def get_mr_function_and_kwargs(config: Dict[str, Any], metamorphic_strategy: str
     return eval(selected_strategy["function"]), selected_strategy["kwargs"]
 
 
-def create_follow(metadata: Dict[str, Any], config: Dict[str, Any],
-                  metamorphic_strategy: str):
+def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     """Change the backend of the passed pyfile."""
     filepath = metadata["py_file_path"]
     file_content = open(filepath, "r").read()
-    mr_function, kwargs = get_mr_function_and_kwargs(config, metamorphic_strategy)
-    metamorphed_file_content, mr_metadata = mr_function(source_code=file_content, **kwargs)
+
+    max_n_transf = config["pipeline"]["max_transformations_per_program"]
+    transf_available = config["metamorphic_strategies"]
+    n_transf_available = len(transf_available)
+    n_transf_to_apply = \
+        random.randint(1, min(n_transf_available, max_n_transf))
+
+    mr_objs = [
+        MetamorphicRelationship(
+            name=mr["name"],
+            function=eval(mr["function"]),
+            kwargs=mr["kwargs"],
+            pre_condition_functions=mr["pre_condition_functions"])
+        for mr in transf_available]
+
+    mr_objs_compatible = [
+        mr for mr in mr_objs if mr.check_preconditions(file_content)]
+
+    mr_objs_to_apply = np.random.choice(
+        mr_objs_compatible,
+        size=n_transf_to_apply,
+        replace=False)
+
+    metamorphed_file_content = Pipeline(
+        metamorphic_relationships=mr_objs_to_apply).run(file_content)
+
+    mr_metadata = {i: mr_objs_to_apply[i].metadata
+                   for i in range(n_transf_to_apply)}
+
+    # mr_function, kwargs = \
+    #     get_mr_function_and_kwargs(config, metamorphic_strategy)
+    # metamorphed_file_content, mr_metadata = \
+    #     mr_function(source_code=file_content, **kwargs)
     experiment_folder = config["experiment_folder"]
     program_id = metadata["program_id"]
-    new_filepath = join(experiment_folder, "programs", "followup", f"{program_id}.py")
+    new_filepath = join(
+        experiment_folder, "programs", "followup", f"{program_id}.py")
     with open(new_filepath, "w") as f:
         f.write(metamorphed_file_content)
     new_metadata = {**metadata, }
     new_metadata["py_file_path"] = new_filepath
     new_metadata["metamorphic_info"] = mr_metadata
-    new_metadata["metamorphic_strategy"] = metamorphic_strategy
+    new_metadata["metamorphic_strategies"] = [mr.name for mr in mr_objs]
     return new_metadata
 
 
@@ -199,22 +238,23 @@ def produce_and_test_single_program_couple(config, generator):
         experiment_folder=experiment_folder,
         config_generation=config["generation_strategy"],
         config=config)
-    chosen_strategy = np.random.choice(
-        [s['name'] for s in config["metamorphic_strategies"]])
-    metadata_followup = create_follow(
-        metadata_source, config, metamorphic_strategy=chosen_strategy)
+    metadata_followup = create_follow(metadata_source, config)
     print(f"Executing: {program_id}")
     exec_metadata = execute_programs(
         metadata_source=metadata_source,
         metadata_followup=metadata_followup)
-    div_metadata = detect_divergence(exec_metadata, detectors=config["detectors"])
+    div_metadata = detect_divergence(exec_metadata,
+                                     detectors=config["detectors"])
     all_metadata = dump_all_metadata(
         out_folder=join(experiment_folder, "programs", "metadata"),
-        program_id=program_id, source=metadata_source, followup=metadata_followup,
+        program_id=program_id,
+        source=metadata_source, followup=metadata_followup,
         divergence=div_metadata, exceptions=exec_metadata["exceptions"])
     dump_metadata(
         metadata=exec_metadata,
-        metadata_filepath=join(experiment_folder, "programs", "metadata_exec", f"{program_id}.json"))
+        metadata_filepath=join(
+            experiment_folder, "programs",
+            "metadata_exec", f"{program_id}.json"))
     con = get_database_connection(config, "qfl.db")
     # remove metamorphic info because they are not uniform to the
     # table schema for all the relationships
@@ -240,7 +280,8 @@ def loop(config):
             break_function_with_timeout(
                 routine=produce_and_test_single_program_couple,
                 seconds_to_wait=budget_time,
-                message="Change 'budget_time_per_program_couple' in config yaml file.",
+                message="Change 'budget_time_per_program_couple'" +
+                        " in config yaml file.",
                 args=(config, generator)
             )
         else:
