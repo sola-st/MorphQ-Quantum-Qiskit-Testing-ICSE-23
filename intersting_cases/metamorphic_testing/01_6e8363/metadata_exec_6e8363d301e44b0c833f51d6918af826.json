@@ -1,0 +1,1 @@
+{"res_A": {"101": 57, "001": 56, "010": 12, "000": 15, "110": 116, "011": 4, "111": 117, "100": 112}, "platform_A": "source", "res_B": {"0": 1}, "platform_B": "follow_up", "exceptions": {"source": null, "followup": "\"Cannot unroll the circuit to the given basis, ['rx', 'ry', 'rz', 'p', 'cx']. Instruction id not found in equivalence library and no rule found to expand.\""}}
