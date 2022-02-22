@@ -1,6 +1,6 @@
 # Run the Quantum Metamorphic Testing
 
-# This file can enable the following metamorphic relationships:
+# This file can enable the concatenation of these metamorphic relationships:
 # - change_backend
 # - change_basis (commented out in this run)
 # - change_opt_level
