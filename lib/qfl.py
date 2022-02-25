@@ -11,6 +11,7 @@ import random
 import click
 import multiprocessing
 import time
+from timeit import default_timer as timer
 from typing import Dict, List, Tuple, Any
 import json
 from os.path import join
@@ -107,7 +108,7 @@ def scan_for_divergence(config: Dict[str, Any], test_name: str = 'ks',
             threshold = alpha_level / (k)
         elif method == 'bh':
             threshold = (alpha_level / (k)) * ordinal_i
-        print(f"(i: {ordinal_i}) current p-value: {P_i} vs threshold: {threshold}")
+        # print(f"(i: {ordinal_i}) current p-value: {P_i} vs threshold: {threshold}")
         if P_i > threshold:
             i_star = i
             print(f"i*: {i_star}")
@@ -132,9 +133,12 @@ def detect_divergence(exec_metadata, detectors: List[Dict[str, Any]] = None):
     results = {}
     for detector_config in detectors:
         detector_name = detector_config["name"]
+        start_check = timer()
         detector = eval(detector_config["detector_object"])()
         stat, pval = detector.check(result_A=exec_metadata['res_A'], result_B=exec_metadata['res_B'])
-        results[detector_name] = {"statistic": stat, "p-value": pval}
+        end_check = timer()
+        time_check = end_check - start_check
+        results[detector_name] = {"statistic": stat, "p-value": pval, "time": time_check}
     return results
 
 

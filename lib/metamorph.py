@@ -20,6 +20,7 @@ import uuid
 
 from importlib import import_module
 from sys import version_info
+from timeit import default_timer as timer
 
 from copy import deepcopy
 
@@ -933,6 +934,7 @@ class MetamorphicRelationship(object):
                  kwargs: Dict[str, Any],
                  pre_condition_functions: List[str] = None):
         self.name = name
+        self.time = None
         self.function = function
         self.kwargs = kwargs
         self.pre_condition_functions = pre_condition_functions
@@ -956,7 +958,10 @@ class MetamorphicRelationship(object):
     def call(self, source_code: str):
         """Apply the metamorphic relationship to the source code."""
         print(f"Applying transformation: {self.name}")
+        start_transformation = timer()
         new_source_code, metadata = self.function(source_code, **self.kwargs)
+        end_transformation = timer()
+        self.time = end_transformation - start_transformation
         self.metadata = metadata
         return new_source_code
 

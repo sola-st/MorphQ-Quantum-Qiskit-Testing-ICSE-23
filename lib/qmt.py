@@ -18,6 +18,10 @@ from os.path import join
 import uuid
 import pandas as pd
 
+from datetime import datetime
+from timeit import default_timer as timer
+
+
 from utils import break_function_with_timeout
 from utils import load_config_and_check
 from utils import create_folder_structure
@@ -83,6 +87,7 @@ def fuzz_source_program(
         config: Dict[str, Any] = None,
         feedback=None):
     """Fuzz a quantum circuit in Qiskit according to the given strategy."""
+    start_generation = timer()
     program_id = uuid.uuid4().hex
     selected_gate_set = config_generation["gate_set"]
     if config_generation["gate_set_dropout"] is not None:
@@ -127,7 +132,8 @@ def fuzz_source_program(
         experiment_folder, "programs", "source", f"{program_id}.py")
     with open(py_file_path, "w") as f:
         f.write(py_file_content)
-
+    end_generation = timer()
+    time_generation = end_generation - start_generation
     metadata = {
         'program_id': program_id,
         'selected_gate_set': [g["name"] for g in selected_gate_set],
@@ -138,6 +144,7 @@ def fuzz_source_program(
         'opt_level': opt_level,
         'target_gates': target_gates,
         'py_file_path': py_file_path,
+        'time_generation': time_generation,
         **metadata
     }
     return program_id, metadata
@@ -148,6 +155,7 @@ def execute_programs(
         metadata_followup: Dict[str, Any]):
     """Execute programs and return the metadata with results."""
     exceptions = {'source': None, 'followup': None}
+    start_exec = timer()
     try:
         res_a = execute_single_py_program(metadata_source["py_file_path"])
     except Exception as e:
@@ -158,6 +166,8 @@ def execute_programs(
     except Exception as e:
         exceptions['followup'] = str(e)
         res_b = {"0": 1}
+    end_exec = timer()
+    time_exec = end_exec - start_exec
     if len(exceptions.items()) > 0:
         print("Crash found. Exception: ", exceptions)
     exec_metadata = {
@@ -165,7 +175,8 @@ def execute_programs(
         "platform_A": "source",
         "res_B": res_b,
         "platform_B": "follow_up",
-        "exceptions": exceptions
+        "exceptions": exceptions,
+        "time_exec": time_exec
     }
     return exec_metadata
 
@@ -182,6 +193,7 @@ def get_mr_function_and_kwargs(
 
 def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     """Change the backend of the passed pyfile."""
+    start_metamorph = timer()
     filepath = metadata["py_file_path"]
     file_content = open(filepath, "r").read()
 
@@ -223,10 +235,16 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
         experiment_folder, "programs", "followup", f"{program_id}.py")
     with open(new_filepath, "w") as f:
         f.write(metamorphed_file_content)
+
+    end_metamorph = timer()
+    time_metamorph = end_metamorph - start_metamorph
+
     new_metadata = {**metadata, }
     new_metadata["py_file_path"] = new_filepath
     new_metadata["metamorphic_info"] = mr_metadata
-    new_metadata["metamorphic_strategies"] = [mr.name for mr in mr_objs]
+    new_metadata["metamorphic_strategies"] = [mr.name for mr in mr_objs_to_apply]
+    new_metadata["time_metamorph"] = time_metamorph
+    new_metadata["metamorphic_times"] = [mr.time for mr in mr_objs_to_apply]
     return new_metadata
 
 
@@ -239,7 +257,8 @@ def produce_and_test_single_program_couple(config, generator):
         config_generation=config["generation_strategy"],
         config=config)
     metadata_followup = create_follow(metadata_source, config)
-    print(f"Executing: {program_id}")
+    current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+    print(f"Executing: {program_id} ({current_date})")
     exec_metadata = execute_programs(
         metadata_source=metadata_source,
         metadata_followup=metadata_followup)
@@ -249,7 +268,9 @@ def produce_and_test_single_program_couple(config, generator):
         out_folder=join(experiment_folder, "programs", "metadata"),
         program_id=program_id,
         source=metadata_source, followup=metadata_followup,
-        divergence=div_metadata, exceptions=exec_metadata["exceptions"])
+        divergence=div_metadata,
+        time_exec=exec_metadata["time_exec"],
+        exceptions=exec_metadata["exceptions"])
     dump_metadata(
         metadata=exec_metadata,
         metadata_filepath=join(
