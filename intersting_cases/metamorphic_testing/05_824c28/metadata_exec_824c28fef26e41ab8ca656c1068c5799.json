@@ -1,0 +1,1 @@
+{"res_A": {"110": 7, "111": 29, "000": 1, "100": 99, "101": 353}, "platform_A": "source", "res_B": {"011": 5, "001": 38, "010": 49, "000": 397}, "platform_B": "follow_up", "exceptions": {"source": null, "followup": null}}
