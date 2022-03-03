@@ -18,21 +18,21 @@ from os.path import join
 import uuid
 import pandas as pd
 
-from utils import break_function_with_timeout
-from utils import load_config_and_check
-from utils import create_folder_structure
-from utils import convert_single_program
-from utils import run_single_program_in_memory
+from lib.utils import break_function_with_timeout
+from lib.utils import load_config_and_check
+from lib.utils import create_folder_structure
+from lib.utils import convert_single_program
+from lib.utils import run_single_program_in_memory
 
-from utils_db import get_database_connection
-from utils_db import update_database
-from utils_db import get_program_ids_in_table
+from lib.utils_db import get_database_connection
+from lib.utils_db import update_database
+from lib.utils_db import get_program_ids_in_table
 
-import generation_strategy
-from generation_strategy import *
-from detectors import *
-from tket_interface import convert_and_execute_qiskit_and_cirq_via_tket
-from multi_platform_interface import convert_and_execute_qiskit_and_cirq_natively
+import lib.generation_strategy
+from lib.generation_strategy import *
+from lib.detectors import *
+from lib.tket_interface import convert_and_execute_qiskit_and_cirq_via_tket
+from lib.multi_platform_interface import convert_and_execute_qiskit_and_cirq_natively
 
 
 from math import sqrt
@@ -179,7 +179,7 @@ def translate_to_platform_code(
 
 
 def fuzz_qasm_program(
-        generator: generation_strategy.GenerationStrategy,
+        generator: lib.generation_strategy.GenerationStrategy,
         experiment_folder: str = None,
         config_generation: Dict[str, Any] = None,
         feedback=None):

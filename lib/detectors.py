@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch_two_sample import statistics_diff
 from scipy.spatial.distance import jensenshannon
-from inspector import convert_dict_to_df
+from lib.inspector import convert_dict_to_df
 
 
 def obtain_raw_samples(summary_dict, representation='binary'):

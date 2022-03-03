@@ -145,3 +145,17 @@ def test_check_transpile_presence_found():
     res = check_function_call_in_code(source_code="""from qiskit import transpile
 qc = transpile(qc, basis_gates=None, optimization_level=3, coupling_map=None)""", func_name="transpile")
     assert res, "The code analysis doesn't recognize transpile API"
+
+
+def test_cluster_of_qubit_when_possible():
+    res = cluster_qubits(circuit_code="""qr_1 = QuantumRegister(3, name='qr_1')
+cr_1 = ClassicalRegister(3, name='cr_1')
+qc_1 = QuantumCircuit(qr_1, cr_1, name='qc_1')
+qc_1.append(SdgGate(), qargs=[qr_1[0]], cargs=[])
+qc_1.append(XGate(), qargs=[qr_1[0]], cargs=[])
+qc_1.append(RZZGate(0.4429181854627117), qargs=[qr_1[1], qr_1[0]], cargs=[])
+qc_1.append(RYYGate(2.2725577430206263), qargs=[qr_1[0], qr_1[1]], cargs=[])
+qc_1.append(TGate(), qargs=[qr_1[0]], cargs=[])
+qc_1.append(XGate(), qargs=[qr_1[2]], cargs=[])""",
+    circuit_name="qc_1", register_name="qr_1")
+    assert res == {frozenset({2}), frozenset({0, 1})}

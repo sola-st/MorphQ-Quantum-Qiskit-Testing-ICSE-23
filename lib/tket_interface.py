@@ -12,9 +12,9 @@ import qiskit
 import cProfile, pstats, io
 from pstats import SortKey
 
-from multi_platform_interface import execute_qiskit_and_cirq
-from multi_platform_interface import run_cirq
-from multi_platform_interface import run_qiskit
+from lib.multi_platform_interface import execute_qiskit_and_cirq
+from lib.multi_platform_interface import run_cirq
+from lib.multi_platform_interface import run_qiskit
 
 
 # Copyright 2019-2022 Cambridge Quantum Computing

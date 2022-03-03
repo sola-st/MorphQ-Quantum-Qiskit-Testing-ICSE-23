@@ -22,32 +22,35 @@ from datetime import datetime
 from timeit import default_timer as timer
 
 
-from utils import break_function_with_timeout
-from utils import load_config_and_check
-from utils import create_folder_structure
-from utils import dump_metadata
-from utils import convert_single_program
-from utils import run_single_program_in_memory
-from utils import iterdict_types
+from lib.utils import break_function_with_timeout
+from lib.utils import load_config_and_check
+from lib.utils import create_folder_structure
+from lib.utils import dump_metadata
+from lib.utils import convert_single_program
+from lib.utils import run_single_program_in_memory
+from lib.utils import iterdict_types
 
-from utils_db import get_database_connection
-from utils_db import update_database
-from utils_db import get_program_ids_in_table
+from lib.utils_db import get_database_connection
+from lib.utils_db import update_database
+from lib.utils_db import get_program_ids_in_table
 
-from generation_strategy_python import *
-from detectors import *
+from lib.generation_strategy_python import *
+from lib.detectors import *
 
 from math import sqrt
 
 
-from qfl import estimate_n_samples_needed
-from qfl import setup_environment
-from qfl import scan_for_divergence
-from qfl import detect_divergence
+from lib.qfl import estimate_n_samples_needed
+from lib.qfl import setup_environment
+from lib.qfl import scan_for_divergence
+from lib.qfl import detect_divergence
 
-from metamorph import *
-from metamorph import MetamorphicRelationship
-from metamorph import Pipeline
+from lib.metamorph import *
+from lib.metamorph import MetamorphicRelationship
+from lib.metamorph import Pipeline
+
+from lib.mr import MetamorphicTransformation
+from lib.mr.chain import ChainedTransformation
 
 
 def dump_all_metadata(
@@ -169,7 +172,7 @@ def execute_programs(
     end_exec = timer()
     time_exec = end_exec - start_exec
     if len(exceptions.items()) > 0:
-        print("Crash found. Exception: ", exceptions)
+        print("Exceptions from execution: ", exceptions)
     exec_metadata = {
         "res_A": res_a,
         "platform_A": "source",
@@ -201,29 +204,31 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     transf_available = config["metamorphic_strategies"]
     n_transf_available = len(transf_available)
     n_transf_to_apply = \
-        random.randint(1, min(n_transf_available, max_n_transf))
+        random.randint(1, max_n_transf)
 
-    mr_objs = [
-        MetamorphicRelationship(
-            name=mr["name"],
-            function=eval(mr["function"]),
-            kwargs=mr["kwargs"],
-            pre_condition_functions=mr["pre_condition_functions"])
-        for mr in transf_available]
+    transformation = ChainedTransformation(
+        name="Chain",
+        metamorphic_strategies_config=transf_available,
+        detectors_config=config["detectors"],
+        seed=None
+    )
+    metamorphed_file_content = file_content
+    safe_counter = 0
+    while transformation.transf_applied_count < n_transf_to_apply:
+        transformation.select_random_transformation()
+        safe_counter += 1
+        if safe_counter > 100:
+            raise Exception("Could not apply any transformation. Source = Follow.")
+        if transformation.check_precondition(metamorphed_file_content):
+            metamorphed_file_content = \
+                transformation.derive(metamorphed_file_content)
+            if not transformation.is_semantically_equivalent():
+                print(transformation.get_name_current_transf(), "is not semantically equivalent. " +
+                      "Thus we stop chain of transformations.")
+                break
+    print("N. applied transformations: ", transformation.transf_applied_count)
 
-    mr_objs_compatible = [
-        mr for mr in mr_objs if mr.check_preconditions(file_content)]
-
-    mr_objs_to_apply = np.random.choice(
-        mr_objs_compatible,
-        size=n_transf_to_apply,
-        replace=False)
-
-    metamorphed_file_content = Pipeline(
-        metamorphic_relationships=mr_objs_to_apply).run(file_content)
-
-    mr_metadata = {i: mr_objs_to_apply[i].metadata
-                   for i in range(n_transf_to_apply)}
+    mr_metadata = transformation.metadata
 
     # mr_function, kwargs = \
     #     get_mr_function_and_kwargs(config, metamorphic_strategy)
@@ -242,10 +247,11 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     new_metadata = {**metadata, }
     new_metadata["py_file_path"] = new_filepath
     new_metadata["metamorphic_info"] = mr_metadata
-    new_metadata["metamorphic_strategies"] = [mr.name for mr in mr_objs_to_apply]
+    # TODO collect this information again (after the refactoring)
+    # new_metadata["metamorphic_strategies"] = [mr.name for mr in mr_objs_to_apply]
     new_metadata["time_metamorph"] = time_metamorph
-    new_metadata["metamorphic_times"] = [mr.time for mr in mr_objs_to_apply]
-    return new_metadata
+    # new_metadata["metamorphic_times"] = [mr.time for mr in mr_objs_to_apply]
+    return new_metadata, transformation
 
 
 def produce_and_test_single_program_couple(config, generator):
@@ -256,20 +262,29 @@ def produce_and_test_single_program_couple(config, generator):
         experiment_folder=experiment_folder,
         config_generation=config["generation_strategy"],
         config=config)
-    metadata_followup = create_follow(metadata_source, config)
+    try:
+        metadata_followup, transformation = create_follow(metadata_source, config)
+    except Exception as e:
+        print("Could not create followup. Exception: ", e)
+        return
+    abs_start_time=time.time()
     current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
     print(f"Executing: {program_id} ({current_date})")
     exec_metadata = execute_programs(
         metadata_source=metadata_source,
         metadata_followup=metadata_followup)
-    div_metadata = detect_divergence(exec_metadata,
-                                     detectors=config["detectors"])
+    # not that if the transformation is a chain of transformations,
+    # then we only check the output relationship of the last transformation
+    div_metadata = transformation.check_output_relationship(
+        result_a=exec_metadata["res_A"],
+        result_b=exec_metadata["res_B"])
     all_metadata = dump_all_metadata(
         out_folder=join(experiment_folder, "programs", "metadata"),
         program_id=program_id,
         source=metadata_source, followup=metadata_followup,
         divergence=div_metadata,
         time_exec=exec_metadata["time_exec"],
+        abs_start_time=int(abs_start_time),
         exceptions=exec_metadata["exceptions"])
     dump_metadata(
         metadata=exec_metadata,
@@ -281,11 +296,16 @@ def produce_and_test_single_program_couple(config, generator):
     # table schema for all the relationships
     if "metamorphic_info" in all_metadata["followup"].keys():
         del all_metadata["followup"]["metamorphic_info"]
-    update_database(con, table_name="QFLDATA", record=all_metadata)
-    scan_for_divergence(config,
-                        method=config["divergence_threshold_method"],
-                        test_name=config["divergence_primary_test"],
-                        alpha_level=config["divergence_alpha_level"])
+    if ((exec_metadata["exceptions"]["source"] is not None) or
+            (exec_metadata["exceptions"]["followup"] is not None)):
+        update_database(con, table_name="CRASHDATA", record=all_metadata)
+    else:
+        update_database(con, table_name="QFLDATA", record=all_metadata)
+        scan_for_divergence(
+            config,
+            method=config["divergence_threshold_method"],
+            test_name=config["divergence_primary_test"],
+            alpha_level=config["divergence_alpha_level"])
 
 
 # LEVEL 2:
@@ -296,8 +316,11 @@ def loop(config):
     generator = eval(config["generation_strategy"]["generator_object"])()
     budget_time = config["budget_time_per_program_couple"]
     while True:
+    # for i in range(3):
         if budget_time is not None:
-            print(f"New program couple... [timer: {budget_time} sec]")
+            current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+            print(f"--------- New programs pair... " +
+                  f"[timer: {budget_time} sec] ({current_date}) ----------")
             break_function_with_timeout(
                 routine=produce_and_test_single_program_couple,
                 seconds_to_wait=budget_time,

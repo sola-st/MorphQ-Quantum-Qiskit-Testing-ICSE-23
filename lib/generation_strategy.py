@@ -14,10 +14,10 @@ import numpy as np
 import math
 import uuid
 
-from qasm_manipulation import remove_all_measurements
-from qasm_manipulation import detect_registers
-from qasm_manipulation import append_1Q_gate
-from qasm_manipulation import get_first_and_only_quantum_register
+from lib.qasm_manipulation import remove_all_measurements
+from lib.qasm_manipulation import detect_registers
+from lib.qasm_manipulation import append_1Q_gate
+from lib.qasm_manipulation import get_first_and_only_quantum_register
 
 
 class NoMoreProgramsAvailable(Exception):

@@ -14,7 +14,7 @@ from typing import List, Tuple, Dict, Any
 
 import os
 import pandas as pd
-from utils import load_json, load_multiple_json
+from lib.utils import load_json, load_multiple_json
 
 
 def convert_dict_to_df(res_a, res_b, platform_a, platform_b):

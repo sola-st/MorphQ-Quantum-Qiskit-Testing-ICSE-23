@@ -24,9 +24,11 @@ from timeit import default_timer as timer
 
 from copy import deepcopy
 
-from generation_strategy_python import *
-from generation_strategy_python import Fuzzer
+from lib.generation_strategy_python import *
+from lib.generation_strategy_python import Fuzzer
 import re
+import networkx as nx
+from itertools import combinations
 
 
 def get_sections(circ_source_code: str) -> Dict[str, str]:
@@ -158,6 +160,42 @@ def replace_identifier(source_code: str, identifier: str, replacement: str):
             return node
 
     changer = IdentifierReplacer(identifier, replacement)
+    modified_tree = changer.visit(tree)
+    return to_code(modified_tree)
+
+
+def remap_qubits(source_code: str,
+                 id_quantum_reg: str,
+                 id_classical_reg: str,
+                 mapping: Dict[int, int]):
+    """Map the qubits indexes to another set of qubit indexes."""
+
+    tree = ast.parse(source_code)
+
+    class QubitOrderChanger(ast.NodeTransformer):
+
+        def __init__(self,
+                     id_quantum_reg: str,
+                     id_classical_reg: str, mapping: Dict[int, int]):
+            self.id_quantum_reg = id_quantum_reg
+            self.id_classical_reg = id_classical_reg
+            self.mapping = mapping
+
+        def visit_Subscript(self, node):
+            if (isinstance(node, ast.Subscript) and
+                    isinstance(node.value, ast.Name) and
+                    (node.value.id == self.id_quantum_reg or
+                     node.value.id == self.id_classical_reg) and
+                    isinstance(node.slice, ast.Index) and
+                    isinstance(node.slice.value, ast.Constant) and
+                    node.slice.value.value in self.mapping.keys()):
+                node.slice.value.value = self.mapping[node.slice.value.value]
+            return node
+
+    changer = QubitOrderChanger(
+        id_quantum_reg=id_quantum_reg,
+        id_classical_reg=id_classical_reg,
+        mapping=mapping)
     modified_tree = changer.visit(tree)
     return to_code(modified_tree)
 
@@ -331,7 +369,7 @@ def get_circuit_via_regex(circ_definition: str) -> str:
     """Extract the identifier names of all the declared circuits.
 
     """
-    m = re.search("([a-zA-Z_]*)\s=\sQuantumCircuit", circ_definition)
+    m = re.search(r"([a-zA-Z_]*)\s=\sQuantumCircuit", circ_definition)
     if m:
         return m.group(1)
     return None
@@ -883,6 +921,72 @@ def check_separable_by_design(source_code: str):
 
     is_separable = sum_of_subcircuit_sizes == main_size
     return is_separable
+
+
+def cluster_qubits(circuit_code: str, circuit_name: str, register_name: str):
+    """Return groups of qubits which intereact only within a group.
+
+    Note that the groups/cluster do not intereact with each other, meaning
+    that there is no two-qubit gate involving two qubits from different
+    groups.
+    """
+    lines = circuit_code.split("\n")
+    connections = []
+    circuit_related_lines = [
+        line for line in lines if f"{circuit_name}." in line]
+    qubit_interaction_graph = nx.Graph()
+    for line in circuit_related_lines:
+        regex = fr"{register_name}\[(\d+)\]"
+        qubits_involved = re.findall(regex, line)
+        qubits_involved = [int(q) for q in qubits_involved]
+        if qubits_involved:
+            # print(qubits_involved)
+
+            for q in qubits_involved:
+                qubit_interaction_graph.add_node(q)
+
+            if len(qubits_involved) > 1:
+                # consider it as edge
+                new_edges = combinations(qubits_involved, 2)
+                qubit_interaction_graph.add_edges_from(new_edges)
+    sub_graphs = nx.connected_components(qubit_interaction_graph)
+    connected_components_set = set([frozenset(g) for g in sub_graphs])
+    return connected_components_set
+
+
+def check_separable(source_code: str, n_partitions: int):
+    """Check if a circuit is separable (medium-hard way).
+
+    The medium-hard way consists in checking if the circuit has two or
+    more clusters of qubits that are not interating (but only in the case of
+    one circuit).
+    Namely if there is a single three subcircuits, one main and two with sizes that
+    give the size of the main one when summed.
+    """
+    code_sections = get_sections(source_code)
+    circuit = code_sections["CIRCUIT"]
+
+    circuits_used = get_circuits_used(circuit)
+    if len(circuits_used) == 0:
+        print("No circuit used. Impossible to sepearate (check_separable).")
+        return False
+    if len(circuits_used) > 1:
+        print("The 'check_separable' check works only with one circuit.")
+        print("The circuit has", len(circuits_used), "circuits.")
+        return False
+    larger_circuit = list(sorted(circuits_used, key=lambda x: x["size"]))[-1]
+
+    main_size = larger_circuit["size"]
+
+    connected_qubits = cluster_qubits(
+        circuit_code=circuit,
+        circuit_name=larger_circuit['name'],
+        register_name=larger_circuit['quantum_register'])
+
+    # print("connected_qubits: ", connected_qubits)
+    if len(connected_qubits) >= n_partitions:
+        return True
+    return False
 
 
 def check_single_circuit(source_code: str):

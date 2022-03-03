@@ -90,7 +90,6 @@ class Fuzzer(ABC):
         pass
 
 
-
 class QiskitFuzzer(Fuzzer):
 
     def circuit_prologue(self):
@@ -193,11 +192,14 @@ class QiskitFuzzer(Fuzzer):
         compatible_gate_set = [
             g for g in gate_set if n_qubits >= g["n_bits"]]
 
+        gates_in_circuit = set()
+
         if n_qubits > 0:
             # we add operations only if we have at least one qubit
             for i_op in range(n_ops):
                 op = np.random.choice(compatible_gate_set, 1)[0]
                 i_instr = f'{id_circuit}.append({op["name"]}('
+                gates_in_circuit.add(op["name"])
                 if op["n_params"] > 0:
                     list_params: str = self._generate_n_params(n_params=op["n_params"])
                     i_instr += f'{list_params}'
@@ -214,6 +216,7 @@ class QiskitFuzzer(Fuzzer):
             "id_quantum_reg": id_quantum_reg,
             "id_classical_reg": id_classical_reg,
             "gate_set": compatible_gate_set,
+            "gates_in_circuit": list(gates_in_circuit)
         }
 
         return source_code, metadata
@@ -271,4 +274,5 @@ class QiskitSeparableFuzzer(QiskitFuzzer):
             **{"partition_1_" + k: v for k, v in metadata_1.items()},
             **{"partition_2_" + k: v for k, v in metadata_2.items()},
         }
+        metadata["gates_in_circuit"] = list(set(metadata_1).union(set(metadata_2)))
         return source_code, metadata
