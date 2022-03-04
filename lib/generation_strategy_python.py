@@ -51,6 +51,10 @@ class Fuzzer(ABC):
             force_quantum_reg_identifier="qr"
         )
         py_file += circuit
+        py_file += self.register_measure(
+            id_target_circuit=metadata_circuit["circuit_id"],
+            id_quantum_reg=metadata_circuit["id_quantum_reg"],
+            id_classical_reg=metadata_circuit["id_classical_reg"],)
         py_file += self.circuit_optimization_passes(
             id_target_circuit=metadata_circuit["circuit_id"],
             optimizations=optimizations)
@@ -58,10 +62,6 @@ class Fuzzer(ABC):
             id_target_circuit=metadata_circuit["circuit_id"],
             level=level_auto_optimization,
             target_gate_set=target_gates)
-        py_file += self.register_measure(
-            id_target_circuit=metadata_circuit["circuit_id"],
-            id_quantum_reg=metadata_circuit["id_quantum_reg"],
-            id_classical_reg=metadata_circuit["id_classical_reg"],)
         py_file += self.circuit_execution(
             id_target_circuit=metadata_circuit["circuit_id"],
             backend=backend,

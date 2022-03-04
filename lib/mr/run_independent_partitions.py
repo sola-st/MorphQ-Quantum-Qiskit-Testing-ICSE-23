@@ -12,7 +12,7 @@ from lib.qfl import detect_divergence
 
 class RunIndependentPartitions(MetamorphicTransformation):
 
-    def check_precondition(self, code_of_source: str) -> bool:\
+    def check_precondition(self, code_of_source: str) -> bool:
         # NB: this checks that there is also only one circuit (implicitly)
         return metamorph.check_separable(
             code_of_source,

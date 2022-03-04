@@ -214,6 +214,7 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     )
     metamorphed_file_content = file_content
     safe_counter = 0
+    name_of_transformations_applied = []
     while transformation.transf_applied_count < n_transf_to_apply:
         transformation.select_random_transformation()
         safe_counter += 1
@@ -222,6 +223,9 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
         if transformation.check_precondition(metamorphed_file_content):
             metamorphed_file_content = \
                 transformation.derive(metamorphed_file_content)
+            name_of_transformations_applied.append(
+                transformation.get_name_current_transf()
+            )
             if not transformation.is_semantically_equivalent():
                 print(transformation.get_name_current_transf(), "is not semantically equivalent. " +
                       "Thus we stop chain of transformations.")
@@ -247,9 +251,9 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     new_metadata = {**metadata, }
     new_metadata["py_file_path"] = new_filepath
     new_metadata["metamorphic_info"] = mr_metadata
-    # TODO collect this information again (after the refactoring)
-    # new_metadata["metamorphic_strategies"] = [mr.name for mr in mr_objs_to_apply]
+    new_metadata["metamorphic_transformations"] = name_of_transformations_applied
     new_metadata["time_metamorph"] = time_metamorph
+    # TODO collect this information again (after the refactoring)
     # new_metadata["metamorphic_times"] = [mr.time for mr in mr_objs_to_apply]
     return new_metadata, transformation
 

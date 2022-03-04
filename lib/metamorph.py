@@ -55,7 +55,7 @@ def reconstruct_sections(sections: Dict[str, str]) -> str:
     """Reconstruct the source code from the sections.
 
     Args:
-        sections: The sections of the circuit.
+        sections: The sections of the source code program.
 
     Returns:
         The source code of the circuit with the sections reconstructed.
@@ -65,6 +65,26 @@ def reconstruct_sections(sections: Dict[str, str]) -> str:
         reconstructed_source_code += f"# SECTION\n# NAME: {section_name}\n"
         reconstructed_source_code += section_content
     return reconstructed_source_code
+
+
+def add_section(sections: Dict[str, str],
+                new_section_name: str,
+                after_section: str) -> Dict[str, str]:
+    """Add a new section after the given one.
+
+    Args:
+        sections: The sections of the source code program.
+
+    Returns:
+        Old sections plus the new one.
+    """
+    new_sections = {}
+    for c_section_name, section_content in sections.items():
+        new_sections[c_section_name] = section_content
+        if c_section_name == after_section:
+            new_empty_section = f"# SECTION\n# NAME: {new_section_name}\n"
+            new_sections[new_section_name] = new_empty_section
+    return new_sections
 
 
 def remove_comments(source_code: str) -> str:

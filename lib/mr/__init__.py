@@ -9,3 +9,4 @@ from .run_independent_partitions import RunIndependentPartitions
 from .change_backend import ChangeBackend
 from .change_target_basis import ChangeTargetBasis
 from .inject_null_effect import InjectNullEffect
+from .add_unused_register import AddUnusedRegister
