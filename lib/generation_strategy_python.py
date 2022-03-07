@@ -97,6 +97,7 @@ class QiskitFuzzer(Fuzzer):
         prologue += "import qiskit\n"
         prologue += "from qiskit import QuantumCircuit, ClassicalRegister, QuantumRegister\n"
         prologue += "from qiskit.circuit.library.standard_gates import *\n"
+        prologue += "from qiskit.circuit import Parameter\n"
         return prologue
 
     def circuit_optimization_passes(self, id_target_circuit: str, optimizations: List[str]):

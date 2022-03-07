@@ -219,7 +219,11 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
         transformation.select_random_transformation()
         safe_counter += 1
         if safe_counter > 100:
-            raise Exception("Could not apply any transformation. Source = Follow.")
+            if len(name_of_transformations_applied) == 0:
+                raise Exception("Could not apply any transformation. Source = Follow.")
+            else:
+                print("No more available transformations. Stop metamorph.")
+                break
         if transformation.check_precondition(metamorphed_file_content):
             metamorphed_file_content = \
                 transformation.derive(metamorphed_file_content)
@@ -319,8 +323,8 @@ def loop(config):
     """Start fuzzing loop."""
     generator = eval(config["generation_strategy"]["generator_object"])()
     budget_time = config["budget_time_per_program_couple"]
-    while True:
-    # for i in range(3):
+    # while True:
+    for i in range(3):
         if budget_time is not None:
             current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
             print(f"--------- New programs pair... " +
