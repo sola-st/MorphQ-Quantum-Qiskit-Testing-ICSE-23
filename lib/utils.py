@@ -203,7 +203,6 @@ def break_function_with_timeout(
         message: str = "Nothing to add.",
         args: List[Any] = None):
     """Break the function with timeout."""
-    routine
     p = multiprocessing.Process(
         target=routine, name=routine.__name__, args=args)
     p.start()

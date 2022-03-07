@@ -8,18 +8,22 @@ Programming Mantra:
 - every function should have 3-5 lines + return statement.
 - max one if per function (which gives +3 lines to use).
 """
-import random
-import click
+from datetime import datetime
+import os
+from os.path import join
+import json
+from math import sqrt
 import multiprocessing
 import time
-from typing import Dict, List, Tuple, Any, Callable
-import json
-from os.path import join
-import uuid
-import pandas as pd
-
-from datetime import datetime
 from timeit import default_timer as timer
+from typing import Dict, List, Tuple, Any, Callable
+import random
+import uuid
+
+import click
+import coverage
+from coverage import Coverage
+import pandas as pd
 
 
 from lib.utils import break_function_with_timeout
@@ -37,7 +41,6 @@ from lib.utils_db import get_program_ids_in_table
 from lib.generation_strategy_python import *
 from lib.detectors import *
 
-from math import sqrt
 
 
 from lib.qfl import estimate_n_samples_needed
@@ -215,23 +218,30 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     metamorphed_file_content = file_content
     safe_counter = 0
     name_of_transformations_applied = []
+    time_of_transformations_applied = []
     while transformation.transf_applied_count < n_transf_to_apply:
         transformation.select_random_transformation()
+        start_transformation = timer()
         safe_counter += 1
         if safe_counter > 100:
             if len(name_of_transformations_applied) == 0:
-                raise Exception("Could not apply any transformation. Source = Follow.")
+                raise Exception("Could not apply any transformation. " +
+                                "Source = Follow.")
             else:
                 print("No more available transformations. Stop metamorph.")
                 break
         if transformation.check_precondition(metamorphed_file_content):
             metamorphed_file_content = \
                 transformation.derive(metamorphed_file_content)
+            end_transformation = timer()
+            time_transformation = end_transformation - start_transformation
+            time_of_transformations_applied.append(time_transformation)
             name_of_transformations_applied.append(
                 transformation.get_name_current_transf()
             )
             if not transformation.is_semantically_equivalent():
-                print(transformation.get_name_current_transf(), "is not semantically equivalent. " +
+                print(transformation.get_name_current_transf() +
+                      " is not semantically equivalent. " +
                       "Thus we stop chain of transformations.")
                 break
     print("N. applied transformations: ", transformation.transf_applied_count)
@@ -255,27 +265,35 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     new_metadata = {**metadata, }
     new_metadata["py_file_path"] = new_filepath
     new_metadata["metamorphic_info"] = mr_metadata
-    new_metadata["metamorphic_transformations"] = name_of_transformations_applied
+    new_metadata["metamorphic_transformations"] = \
+        name_of_transformations_applied
     new_metadata["time_metamorph"] = time_metamorph
-    # TODO collect this information again (after the refactoring)
-    # new_metadata["metamorphic_times"] = [mr.time for mr in mr_objs_to_apply]
+    new_metadata["metamorphic_transformations_times"] = \
+        time_of_transformations_applied
     return new_metadata, transformation
 
 
 def produce_and_test_single_program_couple(config, generator):
     """Fuzz a program and morph it, run both."""
+    coverage_obj = Coverage(
+        data_suffix=False,
+        config_file=config["coverage_settings_filepath"])
+    coverage_obj.load()
+    coverage_obj.start()
     experiment_folder = config["experiment_folder"]
+    coverage.process_startup()
     program_id, metadata_source = fuzz_source_program(
         generator,
         experiment_folder=experiment_folder,
         config_generation=config["generation_strategy"],
         config=config)
     try:
-        metadata_followup, transformation = create_follow(metadata_source, config)
+        metadata_followup, transformation = create_follow(
+            metadata_source, config)
     except Exception as e:
         print("Could not create followup. Exception: ", e)
         return
-    abs_start_time=time.time()
+    abs_start_time = time.time()
     current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
     print(f"Executing: {program_id} ({current_date})")
     exec_metadata = execute_programs(
@@ -314,6 +332,8 @@ def produce_and_test_single_program_couple(config, generator):
             method=config["divergence_threshold_method"],
             test_name=config["divergence_primary_test"],
             alpha_level=config["divergence_alpha_level"])
+    coverage_obj.stop()
+    coverage_obj.save()
 
 
 # LEVEL 2:
@@ -323,8 +343,41 @@ def loop(config):
     """Start fuzzing loop."""
     generator = eval(config["generation_strategy"]["generator_object"])()
     budget_time = config["budget_time_per_program_couple"]
-    # while True:
-    for i in range(3):
+    data_file = join(config["experiment_folder"], "coverage.db")
+    print("Data file: ", data_file)
+    cov = Coverage(
+        data_suffix=False,
+        config_file=config["coverage_settings_filepath"])
+    between_saves = config["programs_between_coverage_checkpoints_start"]
+    between_saves_cap = config["programs_between_coverage_checkpoints_cap"]
+    counter_programs = 0
+    while True:
+    # for i in range(3):
+        counter_programs += 1
+        if counter_programs % between_saves == 0:
+            filename = str(counter_programs).zfill(10) + ".json"
+            print("Saving coverage...")
+            elements = os.listdir(config["experiment_folder"])
+            files_to_combine = [
+                join(config["experiment_folder"], f)
+                for f in elements
+                if os.path.isfile(join(config["experiment_folder"], f)) and ".coverage" in f
+            ]
+            cov.combine(files_to_combine)
+            cov.load()
+            coverage = cov.json_report(outfile=join(
+                config["experiment_folder"], "coverage_reports", filename))
+            print("Coverage saved! ({coverage:.2f}%) " +
+                  f"[programs: {counter_programs}]")
+            # we have a variable size of the checkpoint interval at the
+            # start to have fine grade info about the coverage
+            # increase the time to the next coverage checkpoint
+            if between_saves < between_saves_cap:
+                between_saves = between_saves * 2
+            # if you reach the maximum stop the interval growth
+            if between_saves >= between_saves_cap:
+                between_saves = between_saves_cap
+
         if budget_time is not None:
             current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
             print(f"--------- New programs pair... " +
