@@ -159,3 +159,32 @@ qc_1.append(TGate(), qargs=[qr_1[0]], cargs=[])
 qc_1.append(XGate(), qargs=[qr_1[2]], cargs=[])""",
     circuit_name="qc_1", register_name="qr_1")
     assert res == {frozenset({2}), frozenset({0, 1})}
+
+
+def test_extract_instructions():
+    res = get_instructions("""
+qc_2.append(RZXGate(2.5674333, p_29392d), qargs=[qr_2[2], qr_2[1]], cargs=[])
+qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs
+    =[qr_1[4], qr_1[3]], cargs=[])""")
+    assert res == [
+        {
+            "circuit_id": "qc_2",
+            "gate": "RZXGate",
+            "params": [2.5674333, "p_29392d"],
+            "qregs": ["qr_2", "qr_2"],
+            "qbits": [2, 1],
+            "cregs": [],
+            "cbits": [],
+            'code': 'qc_2.append(RZXGate(2.5674333, p_29392d), qargs=[qr_2[2], qr_2[1]], cargs=[])'
+        },
+        {
+            "circuit_id": "qc_1",
+            "gate": "CUGate",
+            "params": ["p_a7c416", "p_53f0d4", 1.1382126210061985, "p_b2bdc1"],
+            "qregs": ["qr_1", "qr_1"],
+            "qbits": [4, 3],
+            "cregs": [],
+            "cbits": [],
+            'code': 'qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs =[qr_1[4], qr_1[3]], cargs=[])'
+        }
+    ]

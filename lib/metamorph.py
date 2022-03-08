@@ -29,6 +29,7 @@ from lib.generation_strategy_python import Fuzzer
 import re
 import networkx as nx
 from itertools import combinations
+from deprecated import deprecated
 
 
 def get_sections(circ_source_code: str) -> Dict[str, str]:
@@ -69,7 +70,8 @@ def reconstruct_sections(sections: Dict[str, str]) -> str:
 
 def add_section(sections: Dict[str, str],
                 new_section_name: str,
-                after_section: str) -> Dict[str, str]:
+                after_section: str = None,
+                before_section: str = None) -> Dict[str, str]:
     """Add a new section after the given one.
 
     Args:
@@ -79,11 +81,25 @@ def add_section(sections: Dict[str, str],
         Old sections plus the new one.
     """
     new_sections = {}
-    for c_section_name, section_content in sections.items():
+    items = sections.items()
+    assert (after_section is not None and before_section is None) or \
+        (after_section is None and before_section is not None)
+
+    target_section = after_section
+    if before_section is not None:
+        items = reversed(items)
+        target_section = before_section
+
+    for c_section_name, section_content in items:
         new_sections[c_section_name] = section_content
-        if c_section_name == after_section:
+        if c_section_name == target_section:
             new_empty_section = f"# SECTION\n# NAME: {new_section_name}\n"
             new_sections[new_section_name] = new_empty_section
+
+    if before_section is not None:
+        # reorder the keys
+        new_sections = {k: v for k, v in reversed(new_sections.items())}
+
     return new_sections
 
 
@@ -410,6 +426,107 @@ def to_code(node):
     )(node)
 
 
+def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
+    """Return extract all the instructions with the name of the circuit.
+
+    Example Input:
+    qc_2.append(RZXGate(2.5674333, p_29392d), qargs=[qr_2[2], qr_2[1]], cargs=[])
+    qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs
+        =[qr_1[4], qr_1[3]], cargs=[])
+
+    Result Output:
+    [
+        {"circuit_id": "qc_2",
+        "gate": "RZXGate",
+        "params": [2.5674333, "p_29392d"],
+        "qregs": ["qr_2", "qr_2"], "cregs": [],
+        "qargs": [2, 1], "cargs": []},
+        {"circuit_id": "qc_1",
+        "gate": "CUGate",
+        "params": ["p_a7c416", "p_53f0d4", 1.1382126210061985, "p_b2bdc1"],
+        "qregs": ["qr_1", "qr_1"], "cregs": [],
+        "qargs": [4, 3], "cargs": []}
+    ]
+    """
+    class InstructionsCollector(ast.NodeVisitor):
+
+        def __init__(self):
+            self.instructions = []
+
+        def recursive(func):
+            """ decorator to make visitor work recursive """
+            def wrapper(self,node):
+                func(self,node)
+                for child in ast.iter_child_nodes(node):
+                    self.visit(child)
+            return wrapper
+
+        @recursive
+        def visit_Call(self, node):
+            #import pdb
+            #pdb.set_trace()
+
+            condition = (
+                # append call
+                isinstance(node, ast.Call) and
+                isinstance(node.func, ast.Attribute) and
+                (node.func.attr == "append") and
+
+                # there is a gate call as first argument
+                (len(node.args) == 1) and
+                isinstance(node.args[0], ast.Call) and
+                isinstance(node.args[0].func, ast.Name) and
+                ("Gate" in node.args[0].func.id)
+            )
+
+            if condition:
+                new_instr = dict()
+                new_instr["circuit_id"] = node.func.value.id
+                new_instr["gate"] = node.args[0].func.id
+                new_instr["params"] = [
+                    e.id if isinstance(e, ast.Name) else float(e.value)
+                    for e in node.args[0].args
+                ]
+                new_instr["qregs"], new_instr["qbits"] = [], []
+                new_instr["cregs"], new_instr["cbits"] = [], []
+                if len(node.keywords) == 2:
+                    to_upack_qubits = [
+                        (e.value.id, e.slice.value.value)
+                        for e in node.keywords[0].value.elts
+                    ]
+                    if len(to_upack_qubits) > 0:
+                        new_instr["qregs"], new_instr["qbits"] = \
+                            zip(*list(to_upack_qubits))
+
+                    to_upack_bits = [
+                        (e.value.id, e.slice.value.value)
+                        for e in node.keywords[1].value.elts
+                    ]
+                    if len(to_upack_bits) > 0:
+                        new_instr["cregs"], new_instr["cbits"] = \
+                            zip(*list(to_upack_bits))
+
+                new_instr["qregs"] = list(new_instr["qregs"])
+                new_instr["qbits"] = list(new_instr["qbits"])
+                new_instr["cregs"] = list(new_instr["cregs"])
+                new_instr["cbits"] = list(new_instr["cbits"])
+                new_instr["code"] = to_code(node).replace("\n", "").replace("\t", "").replace("    ", " ")
+
+                self.instructions.append(new_instr)
+
+    tree = ast.parse(circ_with_instructions)
+    instrCollector = InstructionsCollector()
+    instrCollector.visit(tree)
+
+    return instrCollector.instructions
+
+
+
+
+
+
+
+@deprecated(version='qmt_v08', reason="You should use ChangeBackend class")
 def mr_change_backend(source_code: str, available_backends: str) -> str:
     """Change the backend used in the source code.
 
@@ -454,6 +571,7 @@ def mr_change_backend(source_code: str, available_backends: str) -> str:
     return reconstruct_sections(sections), mr_metadata
 
 
+@deprecated(version='qmt_v08', reason="You should use ChangeTargetBasis class")
 def mr_change_basis(source_code: str,
                     universal_gate_sets: List[Dict[str, Any]]) -> str:
     """Change the basic gates used in the source code (via transpile).
@@ -492,6 +610,7 @@ def mr_change_basis(source_code: str,
     return reconstruct_sections(sections), mr_metadata
 
 
+@deprecated(version='qmt_v08', reason="You should use ChangeOptLevel class")
 def mr_change_opt_level(source_code: str, levels: List[int]) -> str:
     """Change the optimization level (via transpile).
     """
@@ -533,6 +652,7 @@ def mr_change_opt_level(source_code: str, levels: List[int]) -> str:
     return reconstruct_sections(sections), mr_metadata
 
 
+@deprecated(version='qmt_v08', reason="You should use ChangeCouplingMap class")
 def mr_change_coupling_map(source_code: str,
                            min_perc_nodes: float,
                            max_perc_nodes: float,
@@ -618,6 +738,7 @@ def mr_change_coupling_map(source_code: str,
     return reconstruct_sections(sections), mr_metadata
 
 
+@deprecated(version='qmt_v08', reason="You should use ChangeQubitOrder class")
 def mr_change_qubit_order(source_code: str, scramble_percentage: float) -> str:
     """Change the qubit order.
     """
@@ -696,6 +817,7 @@ RESULT = counts
     return reconstruct_sections(sections), mr_metadata
 
 
+@deprecated(version='qmt_v08', reason="You should use InjectNullEffect class")
 def mr_inject_circuits_and_inverse(
         source_code: str, min_n_ops: int, max_n_ops: int,
         gate_set: Dict[str, Any], fuzzer_object: str) -> str:
@@ -761,6 +883,8 @@ def mr_inject_circuits_and_inverse(
     return reconstruct_sections(sections), mr_metadata
 
 
+@deprecated(version='qmt_v08',
+            reason="You should use RunIndependentPartitions class")
 def mr_run_partitions_and_aggregate(source_code: str, n_partitions: int):
     """Run the n_partitions separately and aggregate.
     """
@@ -821,6 +945,8 @@ RESULT = counts
     return reconstruct_sections(sections), mr_metadata
 
 
+@deprecated(version='qmt_v07',
+            reason="This lead to unconsistent circuits for qiskit developers")
 def mr_add_section_optimizations(source_code: str,
                                  n_sections: int,
                                  optimizations: List[Dict[str, Any]],

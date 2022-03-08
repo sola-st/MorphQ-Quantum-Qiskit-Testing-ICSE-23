@@ -62,4 +62,3 @@ class AddUnusedRegister(MetamorphicTransformation):
         self.metadata = mr_metadata
 
         return metamorph.reconstruct_sections(sections)
-

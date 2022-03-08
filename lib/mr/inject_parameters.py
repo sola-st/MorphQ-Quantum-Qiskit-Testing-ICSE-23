@@ -45,7 +45,12 @@ class InjectParameters(MetamorphicTransformation):
         counter.generic_visit(tree)
         self.concrete_values = counter.concrete_values
         # print("All concrete values:", self.concrete_values)
-        return len(self.concrete_values) > 0
+
+        sections = metamorph.get_sections(code_of_source)
+        execution_area = sections["EXECUTION"]
+        single_circuit_execution = execution_area.count("execute(") == 1
+
+        return len(self.concrete_values) > 0 and single_circuit_execution
 
     def is_semantically_equivalent(self) -> bool:
         return True

@@ -24,6 +24,7 @@ import click
 import coverage
 from coverage import Coverage
 import pandas as pd
+from termcolor import colored
 
 
 from lib.utils import break_function_with_timeout
@@ -175,7 +176,10 @@ def execute_programs(
     end_exec = timer()
     time_exec = end_exec - start_exec
     if len(exceptions.items()) > 0:
-        print("Exceptions from execution: ", exceptions)
+        color = 'red' if (
+            exceptions['followup'] is not None or
+            exceptions['source'] is not None) else 'green'
+        print(colored(f"Exceptions from execution: {exceptions}", color))
     exec_metadata = {
         "res_A": res_a,
         "platform_A": "source",
@@ -247,6 +251,7 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     print("N. applied transformations: ", transformation.transf_applied_count)
 
     mr_metadata = transformation.metadata
+    transformation = transformation.get_last_applied_transformation()
 
     # mr_function, kwargs = \
     #     get_mr_function_and_kwargs(config, metamorphic_strategy)
@@ -291,7 +296,7 @@ def produce_and_test_single_program_couple(config, generator):
         metadata_followup, transformation = create_follow(
             metadata_source, config)
     except Exception as e:
-        print("Could not create followup. Exception: ", e)
+        print(colored(f"Could not create followup. Exception: {e}", 'red'))
         return
     abs_start_time = time.time()
     current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')

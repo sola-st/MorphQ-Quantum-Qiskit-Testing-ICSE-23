@@ -11,3 +11,4 @@ from .change_target_basis import ChangeTargetBasis
 from .inject_null_effect import InjectNullEffect
 from .add_unused_register import AddUnusedRegister
 from .inject_parameters import InjectParameters
+from .to_qasm_and_back import ToQasmAndBack

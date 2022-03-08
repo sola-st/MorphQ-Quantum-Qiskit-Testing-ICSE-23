@@ -52,7 +52,11 @@ class ChainedTransformation(MetamorphicTransformation):
         self.metadata[self.transf_applied_count] = \
             self.main_transformation.metadata
         self.transf_applied_count += 1
+        self.last_applied_transformation = self.main_transformation
         return new_source_code
 
     def get_name_current_transf(self):
         return self.main_transformation.__class__.__name__
+
+    def get_last_applied_transformation(self):
+        return self.last_applied_transformation

@@ -2,6 +2,7 @@ import ast
 from functools import reduce
 import numpy as np
 import re
+import random
 from typing import List, Tuple, Dict, Any
 
 from lib.mr import MetamorphicTransformation
@@ -154,8 +155,24 @@ class RunIndependentPartitions(MetamorphicTransformation):
         # remap the instruction using the mapping
         # for all instructions change the circuit and qubits they are acting on
 
-        for sections_name in ["OPTIMIZATION_PASSES", "OPTIMIZATION_LEVEL",
-                              "MEASUREMENT", "EXECUTION"]:
+        if "PARAMETER_BINDING" in sections.keys():
+            sections["PARAMETER_BINDING"] = self._circuit_specific_bindings(
+                new_circuit_code=new_circuit_code,
+                old_binding_code=sections["PARAMETER_BINDING"]
+            )
+
+
+        if "USELESS_ENTITIES" in sections.keys():
+            sections["USELESS_ENTITIES"] = sections["USELESS_ENTITIES"].replace(
+                f"{main_circuit['name']}.add_register",
+                f"{random.choice(new_subcircuits)['name']}.add_register"
+            )
+
+        sections_to_duplicate = [
+            "OPTIMIZATION_LEVEL", "MEASUREMENT", "EXECUTION"]
+        if "QASM_CONVERSION" in sections.keys():
+            sections_to_duplicate.append("QASM_CONVERSION")
+        for sections_name in sections_to_duplicate:
             c_section = sections[sections_name]
             new_lines = [
                 line if main_circuit["name"] not in line else "\n".join([
@@ -223,3 +240,40 @@ class RunIndependentPartitions(MetamorphicTransformation):
             for bitstring, freq in result_concatenated.items()
         }
         return result_b
+
+    def _circuit_specific_bindings(
+            self, new_circuit_code: str, old_binding_code: str):
+        """Create n bind_parameters calls with the respective params.
+
+        Note that each subcircuit will have bindings only for the parameters
+        used in its definition.
+        """
+        instructions = metamorph.get_instructions(new_circuit_code)
+        current_binding_str = re.search(
+            r"bind_parameters\(\{([a-zA0-9_ ,:\.]+)\}", old_binding_code).group(1)
+        current_binding_dict = {
+            chunk.split(":")[0].strip(): float(chunk.split(":")[1])
+            for chunk in current_binding_str.split(",")
+        }
+
+        available_circuits = list(set(
+            [e['circuit_id'] for e in instructions]
+        ))
+        new_binding_code = ""
+        for circuit_id in available_circuits:
+            c_circuit_parameters = []
+            for instr in instructions:
+                if instr['circuit_id'] == circuit_id:
+                    str_parameters = \
+                        [p for p in instr["params"] if isinstance(p, str)]
+                    c_circuit_parameters += str_parameters
+            c_circuit_binding_dict = {
+                k: v
+                for k, v in current_binding_dict.items()
+                if k in c_circuit_parameters
+            }
+            new_binding_code += \
+                f"{circuit_id} = {circuit_id}.bind_parameters(" + \
+                f"{c_circuit_binding_dict})\n"
+
+        return new_binding_code
