@@ -101,6 +101,8 @@ class RunIndependentPartitions(MetamorphicTransformation):
                 qubits_of_this_partition += unused_qubits
             print(f"{i_partition} partition) qubits_of_this_partition: " +
                   f"{qubits_of_this_partition}")
+            mr_metadata[f"partition_{i_partition}"] = \
+                qubits_of_this_partition
             partition_mapping = {}
             for qubit_subcircuit_idx, qubit_original_idx in enumerate(
                     qubits_of_this_partition):
@@ -108,6 +110,8 @@ class RunIndependentPartitions(MetamorphicTransformation):
                     qubit_subcircuit_idx
                 self.full_mapping[qubit_original_idx] = \
                     shift + qubit_subcircuit_idx
+            mr_metadata[f"partition_{i_partition}_mapping"] = \
+                partition_mapping
 
             code_new_subcircuit_header = metamorph.create_empty_circuit(
                 id_quantum_reg=f"qr_{i_partition+1}",
@@ -146,6 +150,7 @@ class RunIndependentPartitions(MetamorphicTransformation):
                 code_new_subcircuit_header + "\n" + code_instructions
             code_partitions.append(code_partition)
 
+        mr_metadata['subcircuits'] = new_subcircuits
         new_circuit_code = "\n".join(code_partitions)
         sections["CIRCUIT"] = new_circuit_code
 
@@ -196,6 +201,7 @@ class RunIndependentPartitions(MetamorphicTransformation):
             "RESULT = counts",
             f"RESULT = [{counter_identifiers_str}]")
 
+        mr_metadata["mapping"] = self.full_mapping
         self.metadata = mr_metadata
 
         return metamorph.reconstruct_sections(sections)

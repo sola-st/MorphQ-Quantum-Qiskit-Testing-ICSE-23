@@ -1,0 +1,1 @@
+{"res_A": {"000001": 257, "010011": 45, "010001": 47, "001001": 347, "011001": 48, "011011": 53, "001011": 325, "000011": 263}, "platform_A": "source", "res_B": {"0": 1}, "platform_B": "follow_up", "exceptions": {"source": null, "followup": "\"Cannot find gate definition for 'c3sx', line 5 file \""}, "time_exec": 0.7389317438937724}
