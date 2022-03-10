@@ -1,19 +1,25 @@
 """
 This file inspects a specific divergent comparison to find the root cause.
+
+It includes also methods to store copies of interesting files in a
+separate folder.
 """
 
 
 # import libraries
-import seaborn as sns
-import numpy as np
+from copy import deepcopy
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-
-
+import numpy as np
+import os
+from os.path import join
+import pandas as pd
+import pathlib
+import seaborn as sns
+import shutil
 from typing import List, Tuple, Dict, Any
 
-import os
-import pandas as pd
+
 from lib.utils import load_json, load_multiple_json
 
 
@@ -37,6 +43,142 @@ def convert_dict_to_df(res_a, res_b, platform_a, platform_b):
     df = pd.DataFrame(zip(all_strings, all_counters, all_names), columns=["string", "counter", "name"])
     df = df.sort_values(by=["counter"], ascending=False)
     return df
+
+
+def retrieve_relevant_file_paths(
+        experiment_folder: str,
+        program_id: str,
+        root_folder: str = "../data"):
+    """Create the file paths."""
+    main_path = os.path.join(root_folder, experiment_folder, "programs")
+    path_dict = {
+        "source": join(main_path, "source", f"{program_id}.py"),
+        "followup": join(main_path, "followup", f"{program_id}.py"),
+        "metadata": join(main_path, "metadata", f"{program_id}.json"),
+        "metadata_exec": join(main_path, "metadata_exec", f"{program_id}.json")
+    }
+    return path_dict
+
+
+def read_program(path: str):
+    print(open(path, 'r').read())
+
+
+def create_folder_in_interesting_cases(
+        experiment_folder: str,
+        program_id: str,
+        root_folder: str = "../intersting_cases/metamorphic_testing"):
+    """Create destination folder for the relevant files."""
+    number = "".join([c for c in experiment_folder if c.isdigit()])
+    new_folder_name = f"{number}_{program_id[:6]}"
+    new_folder_path = os.path.join(root_folder, new_folder_name)
+    pathlib.Path(new_folder_path).mkdir(parents=True, exist_ok=True)
+    return new_folder_path
+
+
+def copy_bug(
+        experiment_folder: str,
+        program_id: str,
+        root_data_folder: str = "../data",
+        root_bug_folder: str = "../intersting_cases/metamorphic_testing"):
+    """Copy all the files of the interesting bug."""
+    dest_folder = create_folder_in_interesting_cases(
+        experiment_folder=experiment_folder,
+        program_id=program_id,
+        root_folder=root_bug_folder
+    )
+
+    original_file_paths = retrieve_relevant_file_paths(
+        experiment_folder=experiment_folder,
+        program_id=program_id,
+        root_folder=root_data_folder
+    )
+
+    for k, original_file_path in original_file_paths.items():
+        basename = os.path.basename(original_file_path)
+        dest_file_path = join(dest_folder, f"{k}_{basename}")
+        print(f"Copying... from {original_file_path} to {dest_file_path}")
+        try:
+            shutil.copy(original_file_path, dest_file_path)
+        except FileNotFoundError as e:
+            print(e)
+
+
+def normalize_names(df: pd.DataFrame,
+                    col: str, mapping: List[Tuple[str, str]]):
+    """Replace the value of the given column according to the mapping.
+
+    Each cell that contains the first string, will be replaced completely
+    with the second string of the tuple."""
+    df = deepcopy(df)
+    for hook, replacement in mapping:
+        df.loc[df[col].str.contains(hook), col] = replacement
+    return df
+
+
+def inspec_column_of(df, program_id: str, target_col: str):
+    """Inspect the value of a specific column given the program id."""
+    df_single = df[df["program_id"] == program_id]
+    print(f"n hits: {len(df_single)}")
+    df_single = df_single.iloc[0]
+    print(df_single[target_col])
+
+
+def scan_log_for(log_lines: List[str],
+                 target_string: str,
+                 exclude_string: str = None,
+                 neighborhood: int = 3):
+    """Returns all the lines with the target string."""
+    relevant_lines: List[List[str]] = []
+    i: int = 0
+    for line in log_lines:
+        if target_string in line:
+            if exclude_string is not None and exclude_string in line:
+                continue
+            relevant_lines.append(log_lines[i-neighborhood : i+neighborhood])
+        i = i + 1
+    return relevant_lines
+
+
+def get_alarms_with_method(df, pval_col: str, alpha_level: float, method: str):
+    """Get the program ids of the warnings raised by a method."""
+    df_sorted_pvals = df.sort_values(by=[pval_col])
+    k = len(df_sorted_pvals)
+    i_star = None
+    program_ids = []
+    for i, (idx, row) in enumerate(df_sorted_pvals.iterrows()):
+        ordinal_i = i + 1
+        P_i = row[pval_col]
+        if method == 'holm':
+            threshold = alpha_level / (k - ordinal_i + 1)
+        elif method == 'bonferroni':
+            threshold = alpha_level / (k)
+        elif method == 'bh':
+            threshold = (alpha_level / (k)) * ordinal_i
+        # print(f"(i: {ordinal_i}) current p-value: {P_i} vs threshold: {threshold}")
+        elif method == 'static':
+            threshold = alpha_level
+        if P_i > threshold:
+            i_star = i
+            #print(f"i*: {i_star}")
+            break
+        program_ids.append(row["program_id"])
+    return program_ids
+
+
+def count_alarms_with_method(df, pval_col: str, alpha_level: float, method: str):
+    """Count the number of warnings raised by a method."""
+    return len(get_alarms_with_method(
+        df=df,
+        pval_col=pval_col,
+        alpha_level=alpha_level,
+        method=method
+    ))
+
+
+def get_first_n(df, col_time: str, n=1000):
+    """Get the first n records as ordered by the time column."""
+    return df.sort_values(by=col_time).iloc[:n]
 
 
 class Inspector(object):
