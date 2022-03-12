@@ -15,7 +15,11 @@ from lib.qfl import detect_divergence
 class AddUnusedRegister(MetamorphicTransformation):
 
     def check_precondition(self, code_of_source: str) -> bool:
-        return True
+        sections = metamorph.get_sections(code_of_source)
+        code_transpiler = sections["OPTIMIZATION_LEVEL"]
+        is_coupling_map_free = \
+            "coupling_map=None" in code_transpiler.replace(" ", "")
+        return is_coupling_map_free
 
     def is_semantically_equivalent(self) -> bool:
         return True

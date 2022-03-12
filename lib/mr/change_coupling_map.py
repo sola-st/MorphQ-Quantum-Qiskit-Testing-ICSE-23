@@ -11,7 +11,11 @@ from lib.mr import MetamorphicTransformation
 class ChangeCouplingMap(MetamorphicTransformation):
 
     def check_precondition(self, code_of_source: str) -> bool:
-        return True
+        sections = metamorph.get_sections(code_of_source)
+        if "USELESS_ENTITIES" not in sections.keys():
+            return True
+        new_register_added = "add_register" in sections["USELESS_ENTITIES"]
+        return not new_register_added
 
     def is_semantically_equivalent(self) -> bool:
         return True
