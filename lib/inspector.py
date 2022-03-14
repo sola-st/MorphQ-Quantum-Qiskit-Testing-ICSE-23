@@ -15,6 +15,7 @@ import os
 from os.path import join
 import pandas as pd
 import pathlib
+from termcolor import colored
 import seaborn as sns
 import shutil
 from typing import List, Tuple, Dict, Any
@@ -60,8 +61,8 @@ def retrieve_relevant_file_paths(
     return path_dict
 
 
-def read_program(path: str):
-    print(open(path, 'r').read())
+def read_program(path: str, color='black'):
+    print(colored(open(path, 'r').read(), color))
 
 
 def create_folder_in_interesting_cases(

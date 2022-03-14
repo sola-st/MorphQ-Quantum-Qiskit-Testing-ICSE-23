@@ -1,4 +1,4 @@
-name: ML4Quantum
+name: MorphQ
 channels:
   - conda-forge
   - anaconda
@@ -196,15 +196,10 @@ dependencies:
     - dlx==1.0.4
     - docplex==2.22.213
     - duet==0.2.3
-    - en-core-web-lg==3.2.0
-    - en-core-web-sm==3.2.0
-    - en-core-web-trf==3.2.0
     - fastdtw==0.3.4
     - fastjsonschema==2.15.1
     - fastrlock==0.8
     - filelock==3.4.2
-    - flask==2.0.2
-    - grammarinator==19.3.post90+g583ebca
     - grpcio==1.41.0
     - h11==0.9.0
     - h5py==3.2.1
@@ -246,7 +241,6 @@ dependencies:
     - pyquil==3.0.1
     - python-afl==0.7.3
     - python-constraint==1.4.0
-    - python-graphviz==0.14
     - python-rapidjson==1.5
     - pytket==0.18.0
     - pytket-cirq==0.19.0
@@ -288,7 +282,6 @@ dependencies:
     - thinc==8.0.13
     - tokenizers==0.10.3
     - torch==1.10.0
-    - torch-two-sample==0.1
     - transformers==4.15.0
     - tweedledum==1.1.1
     - typer==0.4.0
@@ -303,4 +296,4 @@ dependencies:
     - wrapt==1.13.3
     - yfinance==0.1.64
     - z3-solver==4.8.14.0
-prefix: /home/paltenmo/.conda/envs/ML4Quantum
+prefix: /home/paltenmo/.conda/envs/MorphQ

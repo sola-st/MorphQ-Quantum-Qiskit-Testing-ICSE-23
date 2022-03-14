@@ -1,0 +1,1 @@
+{"res_A": {"000": 489}, "platform_A": "source", "res_B": {"0": 1}, "platform_B": "follow_up", "exceptions": {"source": null, "followup": "\"Cannot find gate definition for 'unitary139852459383248', line 43 file \""}, "time_exec": 0.8925225040875375}
