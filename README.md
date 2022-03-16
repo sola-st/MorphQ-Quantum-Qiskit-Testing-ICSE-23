@@ -62,7 +62,11 @@ There you will find a subfolder for each program pairs which contains:
 - the follow-up quantum program generated via metamorphic transformations: `follow-up.py`
 - the metadata of the generation of the program pair: `metadata.json`
 - the metadata of the execution of the program pair: `metadata_exec.json`
+- an anonymized screenshot of the issue page: `program_code.pdf`
 
+**OPEN DATA**: we share the dataset used in our evaluation section. It is available at this [link](https://figshare.com/s/9547ff4fcda35c4800ef).
+
+**Note for REPRODUCIBILITY**: copy the `qfl.db` file just downloaded in a new folder called `qmt_v20` in the `data` directory, then execute top to bottom all cells of the notebook: [notebooks/40_RQs_Result_Analysis.ipynb](notebooks/40_RQs_Result_Analysis.ipynb).
 
 # Troubleshooting
 Some questions you might ask yourself are:

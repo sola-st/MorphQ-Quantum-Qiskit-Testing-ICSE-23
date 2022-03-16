@@ -1,0 +1,1 @@
+{"res_A": {"11": 1, "01": 5, "00": 179, "10": 161}, "platform_A": "source", "res_B": {"0": 1}, "platform_B": "follow_up", "exceptions": {"source": null, "followup": "\"Cannot find gate definition for 'rzx', line 3 file \""}, "time_exec": 0.4922449360601604}
