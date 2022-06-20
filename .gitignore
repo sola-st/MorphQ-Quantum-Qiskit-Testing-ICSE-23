@@ -1,6 +1,8 @@
 *-checkpoint.ipynb
 *.pyc
 
+data/experiments_dev_cycle_1/*
+
 data/random_bitstrings/*
 data/random_program_execution/*
 data/QASMBench/*
@@ -64,5 +66,8 @@ data/qmt_v19/*
 data/qmt_v20/*
 data/qmt_v21/*
 data/qmt_v22/*
+
+
+
 data/qmt_v21/
 data/qmt_v22/
