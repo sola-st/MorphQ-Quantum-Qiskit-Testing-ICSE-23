@@ -12,3 +12,7 @@ from .inject_null_effect import InjectNullEffect
 from .add_unused_register import AddUnusedRegister
 from .inject_parameters import InjectParameters
 from .to_qasm_and_back import ToQasmAndBack
+
+# QDIFF transformations
+
+from .qdiff_g1_swap_to_cnot import QdiffG1SwapToCnot

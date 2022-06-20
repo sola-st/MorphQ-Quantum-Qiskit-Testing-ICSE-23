@@ -62,7 +62,7 @@ def derive_from_template(from_template, version):
     return target_location
 
 
-def show_example_commands(new_config_file, version):
+def show_example_commands(version):
     """Show examples on how to use the newly created config file."""
     print("\nExample commands:")
     print(
@@ -117,8 +117,8 @@ def create_coverage_file(new_config_file, from_template, version):
 
 def check_if_version_already_exists(version):
     """Check if the version already exists."""
-    if os.path.exists(f"./config/qmt_v{version}.yaml"):
-        print(colored(f"Version {version} already exists.", "red"))
+    target_location = f"./config/qmt_v{version}.yaml"
+    if os.path.exists(target_location):
         return True
     return False
 
@@ -143,10 +143,8 @@ def exclude_exp_folder_gitignore(new_config_file):
 def new_config(version, from_template):
     """Generate a new config file."""
     if check_if_version_already_exists(version):
-        return
-    target_location = str(os.path.join("./config", f"qmt_v{version}.yaml"))
-    if os.path.exists(target_location):
-        print(colored("Config file already exists.", "red"))
+        print(colored(f"Version {version} already exists.", "red"))
+        show_example_commands(version)
         return
     from_template = query_for_template(from_template)
     target_location = derive_from_template(from_template, version)
@@ -157,7 +155,7 @@ def new_config(version, from_template):
     create_coverage_file(config, from_template, version)
     create_experiment_folder(config)
     exclude_exp_folder_gitignore(config)
-    show_example_commands(config, version)
+    show_example_commands(version)
 
 
 if __name__ == '__main__':

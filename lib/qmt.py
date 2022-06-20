@@ -189,16 +189,6 @@ def execute_programs(
     return exec_metadata
 
 
-def get_mr_function_and_kwargs(
-        config: Dict[str, Any],
-        metamorphic_strategy: str) -> Tuple[Callable, Dict[str, Any]]:
-    """Get the metamorphic function and its argument of a specific strategy."""
-    possible_strategies = config["metamorphic_strategies"]
-    selected_strategy = [
-        s for s in possible_strategies if s["name"] == metamorphic_strategy][0]
-    return eval(selected_strategy["function"]), selected_strategy["kwargs"]
-
-
 def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     """Change the backend of the passed pyfile."""
     start_metamorph = timer()
@@ -206,8 +196,15 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
     file_content = open(filepath, "r").read()
 
     max_n_transf = config["pipeline"]["max_transformations_per_program"]
-    transf_available = config["metamorphic_strategies"]
-    n_transf_available = len(transf_available)
+
+    if config["transformation_mode"] == "morphq":
+        transf_available = config["morphq_metamorphic_strategies"]
+    elif config["transformation_mode"] == "qdiff":
+        transf_available = config["qdiff_metamorphic_strategies"]
+        # reduce the number of transformations to apply of one, to apply a
+        # differential testing transformation at the end of the chain
+        # aka a change of backend or optimization level
+        max_n_transf = max(1, max_n_transf - 1)
     n_transf_to_apply = \
         random.randint(1, max_n_transf)
 
@@ -241,6 +238,9 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
             name_of_transformations_applied.append(
                 transformation.get_name_current_transf()
             )
+            # remember that by construction the transformations of qdiff
+            # are semantically preserving, thus the last transformation to
+            # check is always equivalence
             if not transformation.is_semantically_equivalent():
                 print(transformation.get_name_current_transf() +
                       " is not semantically equivalent. " +
@@ -248,13 +248,29 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
                 break
     print("N. applied transformations: ", transformation.transf_applied_count)
 
+    # append the change of backend or optimization level
+    if config["transformation_mode"] == "qdiff":
+        diff_testing_transformations = config["qdiff_diff_testing"]
+        transformation = ChainedTransformation(
+            name="Chain",
+            metamorphic_strategies_config=diff_testing_transformations,
+            detectors_config=config["detectors"],
+            seed=None
+        )
+        transformation.select_random_transformation()
+        if transformation.check_precondition(metamorphed_file_content):
+            metamorphed_file_content = \
+                transformation.derive(metamorphed_file_content)
+            name_of_transformations_applied.append(
+                transformation.get_name_current_transf()
+            )
+            print("Applying one last differential testing transformation")
+        else:
+            print("Warning: could not apply diff testing transformation.")
+
     mr_metadata = transformation.metadata
     transformation = transformation.get_last_applied_transformation()
 
-    # mr_function, kwargs = \
-    #     get_mr_function_and_kwargs(config, metamorphic_strategy)
-    # metamorphed_file_content, mr_metadata = \
-    #     mr_function(source_code=file_content, **kwargs)
     experiment_folder = config["experiment_folder"]
     program_id = metadata["program_id"]
     new_filepath = join(
