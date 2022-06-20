@@ -42,8 +42,6 @@ from lib.utils_db import get_program_ids_in_table
 from lib.generation_strategy_python import *
 from lib.detectors import *
 
-
-
 from lib.qfl import estimate_n_samples_needed
 from lib.qfl import setup_environment
 from lib.qfl import scan_for_divergence
@@ -280,13 +278,14 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
 
 def produce_and_test_single_program_couple(config, generator):
     """Fuzz a program and morph it, run both."""
-    coverage_obj = Coverage(
-        data_suffix=False,
-        config_file=config["coverage_settings_filepath"])
-    coverage_obj.load()
-    coverage_obj.start()
     experiment_folder = config["experiment_folder"]
-    coverage.process_startup()
+    if config["track_coverage"]:
+        coverage_obj = Coverage(
+            data_suffix=False,
+            config_file=config["coverage_settings_filepath"])
+        coverage_obj.load()
+        coverage_obj.start()
+        coverage.process_startup()
     program_id, metadata_source = fuzz_source_program(
         generator,
         experiment_folder=experiment_folder,
@@ -337,8 +336,9 @@ def produce_and_test_single_program_couple(config, generator):
             method=config["divergence_threshold_method"],
             test_name=config["divergence_primary_test"],
             alpha_level=config["divergence_alpha_level"])
-    coverage_obj.stop()
-    coverage_obj.save()
+    if config["track_coverage"]:
+        coverage_obj.stop()
+        coverage_obj.save()
 
 
 # LEVEL 2:
@@ -348,31 +348,33 @@ def loop(config):
     """Start fuzzing loop."""
     generator = eval(config["generation_strategy"]["generator_object"])()
     budget_time = config["budget_time_per_program_couple"]
-    data_file = join(config["experiment_folder"], "coverage.db")
-    print("Data file: ", data_file)
-    cov = Coverage(
-        data_suffix=False,
-        config_file=config["coverage_settings_filepath"])
-    between_saves = config["programs_between_coverage_checkpoints_start"]
-    between_saves_cap = config["programs_between_coverage_checkpoints_cap"]
+    if config["track_coverage"]:
+        data_file = join(config["experiment_folder"], "coverage.db")
+        print("Data file: ", data_file)
+        cov = Coverage(
+            data_suffix=False,
+            config_file=config["coverage_settings_filepath"])
+        between_saves = config["programs_between_coverage_checkpoints_start"]
+        between_saves_cap = config["programs_between_coverage_checkpoints_cap"]
     counter_programs = 0
-    while True:
     # for i in range(3):
+    while True:
         counter_programs += 1
-        if counter_programs % between_saves == 0:
+        if config["track_coverage"] and counter_programs % between_saves == 0:
             filename = str(counter_programs).zfill(10) + ".json"
             print("Saving coverage...")
             elements = os.listdir(config["experiment_folder"])
             files_to_combine = [
                 join(config["experiment_folder"], f)
                 for f in elements
-                if os.path.isfile(join(config["experiment_folder"], f)) and ".coverage" in f
+                if (os.path.isfile(join(config["experiment_folder"], f))
+                    and ".coverage" in f)
             ]
             cov.combine(files_to_combine)
             cov.load()
             coverage = cov.json_report(outfile=join(
                 config["experiment_folder"], "coverage_reports", filename))
-            print("Coverage saved! ({coverage:.2f}%) " +
+            print(f"Coverage saved! ({coverage:.2f}%) " +
                   f"[programs: {counter_programs}]")
             # we have a variable size of the checkpoint interval at the
             # start to have fine grade info about the coverage
