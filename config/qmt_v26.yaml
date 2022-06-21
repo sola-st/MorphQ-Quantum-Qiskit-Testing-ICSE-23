@@ -1,13 +1,16 @@
 # Run the Quantum Metamorphic Testing (QDiff re-implementation)
 
 # This file can enable the concatenation of these metamorphic relationships:
-# - Qdiff G1 SwapToCnot
-# - Qdiff G2 TwoHToId
-# - Qdiff G3 XToHSSH
-# - Qdiff G4 ZtoSS
-# - Qdiff G5 CZtoHCnotH
-# - Qdiff G6 TwoCzToId
-# - Qdiff G7 CCNOTDecomposition
+# - change_backend
+# - change_basis (commented out in this run)
+# - change_opt_level
+# - change_qubit_order
+# - change coupling map
+# - inject null-effect operations
+# - run separate sub-circuits and aggregate them with cartesian product
+# - add quantum register
+# - inject concrete parametrized values
+# - convert to qasm and then back to QuantumCircuit
 
 # Then it concatenates a differential testing setup
 # - change_backend
@@ -15,10 +18,10 @@
 
 # all gates used unless deprecated
 
-version: 24
+version: 26
 
 # FOLDER ORGANIZATION
-experiment_folder: data/qmt_v24/
+experiment_folder: data/qmt_v26/
 
 # SUBFOLDER STRUCTURE
 folder_structure:
@@ -30,9 +33,9 @@ folder_structure:
   coverage_reports: null
 
 # COVERAGE SETTINGS
-track_coverage: false
-coverage_settings_filepath: config/qmt_v24.cover
-programs_between_coverage_checkpoints_start: 2
+track_coverage: true
+coverage_settings_filepath: config/qmt_v26.cover
+programs_between_coverage_checkpoints_start: 64
 programs_between_coverage_checkpoints_cap: 1000
 
 # EXECUTION
@@ -273,13 +276,13 @@ generation_strategy:
 # METAMORPH PIPELINE:
 
 pipeline:
-  max_transformations_per_program: 1
+  max_transformations_per_program: 4
 
 
 # METAMORPH RELATIONSHIPS
 # The following keys in the metamorphic strategies field refer to class names.
 
-transformation_mode: qdiff # qdiff | morphq
+transformation_mode: morphq # qdiff | morphq
 
 qdiff_metamorphic_strategies:
   QdiffG1SwapToCnot:
