@@ -19,6 +19,7 @@ from timeit import default_timer as timer
 from typing import Dict, List, Tuple, Any, Callable
 import random
 import uuid
+import traceback
 
 import click
 import coverage
@@ -259,12 +260,13 @@ def create_follow(metadata: Dict[str, Any], config: Dict[str, Any]):
         )
         transformation.select_random_transformation()
         if transformation.check_precondition(metamorphed_file_content):
+            print("Applying last transformation that serve as " +
+                  "the differential testing setup.")
             metamorphed_file_content = \
                 transformation.derive(metamorphed_file_content)
             name_of_transformations_applied.append(
                 transformation.get_name_current_transf()
             )
-            print("Applying one last differential testing transformation")
         else:
             print("Warning: could not apply diff testing transformation.")
 
@@ -311,7 +313,10 @@ def produce_and_test_single_program_couple(config, generator):
         metadata_followup, transformation = create_follow(
             metadata_source, config)
     except Exception as e:
+        print(f"Program id: {program_id}")
         print(colored(f"Could not create followup. Exception: {e}", 'red'))
+        if "Source = Follow" not in str(e):
+            traceback.print_exc()
         return
     abs_start_time = time.time()
     current_date = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')

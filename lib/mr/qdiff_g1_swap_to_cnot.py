@@ -47,11 +47,11 @@ class QdiffG1SwapToCnot(MetamorphicTransformation):
         return True
 
     def derive(self, code_of_source: str) -> str:
-        """Scramble the order of qubits."""
+        """Replace a swap gate with two CNOT gates."""
         min_to_change = self.mr_config['min_to_change']
         max_to_change = self.mr_config['max_to_change']
         n_gate_to_change = random.randint(min_to_change, max_to_change)
-        max_to_change = max(n_gate_to_change, self.tot_n_swap_gates)
+        max_to_change = min(n_gate_to_change, self.tot_n_swap_gates)
         to_be_changed_vector = np.zeros(self.tot_n_swap_gates)
         to_be_changed_vector[:n_gate_to_change] = 1
         # randomize the vector

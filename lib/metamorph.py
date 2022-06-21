@@ -4,6 +4,7 @@
 
 import random
 import numpy as np
+import pandas as pd
 import scipy
 
 import qiskit
@@ -455,8 +456,8 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
 
         def recursive(func):
             """ decorator to make visitor work recursive """
-            def wrapper(self,node):
-                func(self,node)
+            def wrapper(self, node):
+                func(self, node)
                 for child in ast.iter_child_nodes(node):
                     self.visit(child)
             return wrapper
@@ -510,6 +511,8 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
                 new_instr["qbits"] = list(new_instr["qbits"])
                 new_instr["cregs"] = list(new_instr["cregs"])
                 new_instr["cbits"] = list(new_instr["cbits"])
+                new_instr["lineno"] = int(node.lineno)
+                new_instr["end_lineno"] = int(node.end_lineno)
                 new_instr["code"] = to_code(node).replace("\n", "").replace("\t", "").replace("    ", " ")
 
                 self.instructions.append(new_instr)
@@ -521,8 +524,104 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
     return instrCollector.instructions
 
 
+def get_consecutive_gates(
+        source_code: str, gate_name: str) -> List[Dict[str, str]]:
+    """Return a list of pairs of consecutive gates acting on the same bit(s).
 
+    Limitation: note that some gates, such as SwapGate do not care about the
+    order used in qubits but this function doesn't handle that case.
 
+    Example Input:
+    gate_name: str
+        "HGate"
+    source_code: str
+        qc.append(CSwapGate(), qargs=[qr[1], qr[0], qr[6]], cargs=[])
+        qc.append(HGate(), qargs=[qr[2]], cargs=[])
+        qc.append(HGate(), qargs=[qr[2]], cargs=[])
+        qc.append(YGate(), qargs=[qr[3]], cargs=[])
+        qc_2.append(CZGate(), qargs=[qr_2[4], qr_2[3]], cargs=[])
+        qc_2.append(YGate(), qargs=[qr_2[1]], cargs=[])
+        qc_2.append(CZGate(), qargs=[qr_2[4], qr_2[3]], cargs=[])
+    Output:
+    [
+        {'lineno': 2,
+        'end_lineno': 2,
+        'next_lineno': 3,
+        'next_end_lineno': 3,
+        'qregs': ['qr'],
+        'qbits': [2],
+        'cregs': [],
+        'cbits': [],
+        'circuit_id': 'qc',
+        'gate': 'HGate'}
+    ]
+    """
+    suitable_line_pairs = []
+    instructions = get_instructions(source_code)
+    if len(instructions) == 0:
+        return suitable_line_pairs
+    df_instr = pd.DataFrame.from_records(instructions)
+    # get all the registers
+    nested_list = list(df_instr["qregs"])
+    flat_list = [x for xs in nested_list for x in xs]
+    unique_registers = list(set(flat_list))
+    # print("unique_registers: ", unique_registers)
+    # keep only operations referring to this register
+    for register in unique_registers:
+        df_instr_curr_register = df_instr[
+            (df_instr["qregs"].apply(
+                lambda used_regs: all([r == register for r in used_regs])))]
+        df_instr_curr_register = \
+            df_instr_curr_register.sort_values(by="lineno")
+        # get all the used qbits
+        possible_qubits_combinations = list(
+            df_instr_curr_register["qbits"])
+        # remove duplicates
+        possible_qubits_combinations = list(set([
+            tuple(e) for e in possible_qubits_combinations
+        ]))
+        # print("possible_qubits_combinations: ", possible_qubits_combinations)
+
+        # for each used qubits (more than once), check if there are
+        # two consecutive operations of the given gate
+        for qubits_combination in possible_qubits_combinations:
+            df_instr_c_bit = df_instr_curr_register[
+                df_instr_curr_register.apply(
+                    lambda row:
+                        any([qbit in qubits_combination
+                             for qbit in row["qbits"]]),
+                    axis=1
+                )
+            ]
+            # find directly contiguous HGates
+            for i in range(len(df_instr_c_bit) - 1):
+                i_next = i + 1
+                i_instr = df_instr_c_bit.iloc[i]
+                next_instr = df_instr_c_bit.iloc[i_next]
+                target_bits = list(qubits_combination)
+                if (    # same gate name
+                        i_instr["gate"] == gate_name and
+                        next_instr["gate"] == gate_name and
+                        # same bits
+                        i_instr["qbits"] == target_bits and
+                        next_instr["qbits"] == target_bits):
+                    suitable_line_pairs += [
+                        {
+                            "lineno": i_instr["lineno"],
+                            "end_lineno": i_instr["end_lineno"],
+                            "next_lineno": next_instr["lineno"],
+                            "next_end_lineno": next_instr["end_lineno"],
+                            "qregs": i_instr["qregs"],
+                            "qbits": i_instr["qbits"],
+                            "cregs": i_instr["cregs"],
+                            "cbits": i_instr["cbits"],
+                            "circuit_id": i_instr["circuit_id"],
+                            "gate": i_instr["gate"]
+                        }
+                    ]
+    df_suitable_line_pairs = pd.DataFrame.from_records(suitable_line_pairs)
+
+    return df_suitable_line_pairs.to_dict("records")
 
 
 
