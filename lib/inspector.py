@@ -62,7 +62,10 @@ def retrieve_relevant_file_paths(
 
 
 def read_program(path: str, color='black'):
-    print(colored(open(path, 'r').read(), color))
+    file_content = open(path, 'r').read()
+    print(colored(file_content, color))
+    return file_content
+
 
 
 def create_folder_in_interesting_cases(
@@ -115,6 +118,38 @@ def normalize_names(df: pd.DataFrame,
     for hook, replacement in mapping:
         df.loc[df[col].str.contains(hook), col] = replacement
     return df
+
+
+def cluster_warnings(
+        df: pd.DataFrame, warning_col: str, cluster_config: Dict[str, Any]):
+    """Cluster the warnings based the given cluster configuration.
+
+    Return: pd.DataFrame
+        initial dataframe with new columns:
+        - cluster_id
+        - category: BUG, FP, UNCLEAR
+        - short_desc: short description
+        - etc. the other columns can be see in the configuration file
+        in the cluster section
+    """
+    df = deepcopy(df)
+    df_clusters = pd.json_normalize(cluster_config["clusters"])
+    # create a default no cluster category
+    df["cluster_id"] = "C_0"
+    for cluster_rule in cluster_config["clustering_rules"]:
+        hook = cluster_rule["hook"]
+        replacement = cluster_rule["cluster_id"]
+        if cluster_rule["type"] == "substring":
+            df.loc[df[warning_col].str.contains(hook), "cluster_id"] = \
+                replacement
+        elif cluster_rule["type"] == "regex":
+            df.loc[df[warning_col].str.contains(hook, regex=True), "cluster_id"] = replacement
+    df_augmented = pd.merge(
+        left=df,
+        right=df_clusters,
+        on="cluster_id"
+    )
+    return df_augmented
 
 
 def inspec_column_of(df, program_id: str, target_col: str):

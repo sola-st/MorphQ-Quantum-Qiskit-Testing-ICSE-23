@@ -1,0 +1,277 @@
+# This config file describes the clustering of warnings based
+# on regex patterns.
+
+# The clustering rules define how to map a warning to a specific cluster by
+# using regex expressions or strings which are respectively matched or
+# contained in the original warning message.
+# The clustering rules are ordered in priority order, the first has the
+# highest priority and is checked first, given a new warning message.
+
+# Each clustering rule maps a group of warnings to a specific macro-warning
+# cluster which is identified with a string (e.g. C_CU3 C_MISSING_DEF, ...);
+# the convention want it to be snake case and all caps lock.
+# Then each macro-warning cluster identifier is explained in the
+# clusters section, where each marco-warning cluster includes:
+# - possible root cause,
+# - warning category (i.e. BUG, UNCLEAR, FP for false positive)
+# - possible file with the bug,
+# - time spent to debug it in minutes.
+
+clustering_rules:
+  - type: substring
+    hook: "Mismatch between run_config.parameter_binds"
+    cluster_id: C_CU
+  - type: substring
+    hook: "Cannot represent circuits with unbound parameters in OpenQASM 2."
+    cluster_id: C_CU
+  - type: regex
+    hook: Argument 'p_[0-9a-z]+' in expression cannot be found
+    cluster_id: C_CU
+  - type: substring
+    hook: "Cannot find gate definition for 'rcccx'"
+    cluster_id: C_RCCCX
+  - type: substring
+    hook: "Cannot bind parameters"
+    cluster_id: C_C3X_CU3
+  - type: substring
+    hook: "greater than maximum"
+    cluster_id: C_TOO_BITS
+  - type: substring
+    hook: "Unable to map source basis"
+    cluster_id: C_MAP_FAIL
+  - type: substring
+    hook: "Instruction id not found"
+    cluster_id: C_ID_NOT_FOUND
+  - type: substring
+    hook: "Cannot find gate definition for 'c3sx'"
+    cluster_id: C_C3SX
+  - type: substring
+    hook: "Gate or opaque call to 'subcircuit'"
+    cluster_id: C_OPAQUE_CALL
+  - type: substring
+    hook: "Duplicate declaration for gate 'rzx'"
+    cluster_id: C_RZX
+  - type: substring
+    hook: "Duplicate declaration for gate 'ryy'"
+    cluster_id: C_RYY
+  - type: substring
+    hook: "too many subscripts in einsum"
+    cluster_id: C_NP_LIMIT
+  - type: substring
+    hook: "Cannot find gate definition for 'rzx'"
+    cluster_id: C_RZX_NOT_FOUND
+  - type: substring
+    hook: "Cannot find gate definition for 'unitary"
+    cluster_id: C_UNITARY
+  - type: substring
+    hook: "Expected an ID, received '{'"
+    cluster_id: C_EMPTY_UNITARY
+
+clusters:
+  - cluster_id: C_0
+    category: UNCLEAR
+    short_desc: "No cluster"
+    long_comment: ""
+    essential_transformations: []
+    root_cause: ""
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_CU
+    category: BUG
+    short_desc: "Mismatch between run_config.parameter_binds"
+    long_comment: ""
+    essential_transformations:
+      - InjectPrograms
+    root_cause: "CUGate"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: "https://github.com/Qiskit/qiskit-terra/issues/7326"
+  - cluster_id: C_C3X_CU3
+    category: BUG
+    short_desc: "Cannot bind parameters"
+    long_comment: ""
+    essential_transformations:
+      - InjectPrograms
+    root_cause: "C3XGate, CU3Gate"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_TOO_BITS
+    category: BUG
+    short_desc: "Number of qubits larger than coupling_map"
+    long_comment: ""
+    essential_transformations:
+      - AddUnusedRegister
+    root_cause: ""
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_MAP_FAIL
+    category: BUG
+    short_desc: "Unable to map source basis"
+    long_comment: ""
+    essential_transformations:
+      - ChangeTargetBasis
+    root_cause: ""
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_ID_NOT_FOUND
+    category: BUG
+    short_desc: "Instruction id not found"
+    long_comment: ""
+    essential_transformations:
+      - ChangeTargetBasis
+    root_cause: ""
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_C3SX
+    category: BUG
+    short_desc: "Cannot find gate definition for 'c3sx'"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+    root_cause: "missing qasm definition"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_OPAQUE_CALL
+    category: BUG
+    short_desc: "Gate or opaque call to 'subcircuit'"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+      - InjectNullEffect
+    root_cause: "no classic reg in gate"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_RZX
+    category: BUG
+    short_desc: "Duplicate declaration for gate 'rzx'"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+      - InjectNullEffect
+    root_cause: "ecr conversion (complex gate)"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: ""
+  - cluster_id: C_RYY
+    category: BUG
+    short_desc: "Duplicate declaration for gate 'ryy'"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+      - InjectNullEffect
+    root_cause: "ryy and its inverse in a subcircuit"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: "https://github.com/Qiskit/qiskit-terra/issues/7771"
+  - cluster_id: C_RZX_NOT_FOUND
+    category: BUG
+    short_desc: "Cannot find gate definition for 'rzx'"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+      - InjectNullEffect
+    root_cause: "complex gate defined before subcomponents"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: "https://github.com/Qiskit/qiskit-terra/issues/7769"
+  - cluster_id: C_NP_LIMIT
+    category: BUG
+    short_desc: "too many subscripts in einsum"
+    long_comment: ""
+    essential_transformations:
+      - ChangeOptLevel
+      - InjectNullEffect
+    root_cause: "numpy limitation"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: "https://github.com/Qiskit/qiskit-terra/issues/7700"
+  - cluster_id: C_RCCCX
+    category: BUG
+    short_desc: "Cannot find gate definition for 'rcccx'"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+      - InjectNullEffect
+    root_cause: "numpy limitation"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: "https://github.com/Qiskit/qiskit-terra/issues/7773"
+  - cluster_id: C_UNITARY
+    category: BUG
+    short_desc: "Cannot find gate definition for unitary"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+      - ChangeOptLevel
+      - InjectNullEffect
+    root_cause: "CSwapGate and complex gate in subcircuit"
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link:
+     - "https://github.com/Qiskit/qiskit-terra/issues/7772"
+     - "https://github.com/Qiskit/qiskit-terra/issues/8222"
+  - cluster_id: C_EMPTY_UNITARY
+    category: BUG
+    short_desc: "QASM with empty unitary"
+    long_comment: ""
+    essential_transformations:
+      - ToQasmAndBack
+      - ChangeOptLevel
+      - InjectNullEffect
+    root_cause: ""
+    time: null
+    triage:
+      file: null
+      function: null
+      lineno: null
+    bug_report_link: "https://github.com/Qiskit/qiskit-terra/issues/8224"
+
