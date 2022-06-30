@@ -27,6 +27,9 @@ clustering_rules:
   - type: regex
     hook: Argument 'p_[0-9a-z]+' in expression cannot be found
     cluster_id: C_CU
+  - type: regex
+    hook: ParameterExpression with unbound parameters \(\{Parameter\(p_[0-9a-z]+
+    cluster_id: C_CU
   - type: substring
     hook: "Cannot find gate definition for 'rcccx'"
     cluster_id: C_RCCCX
