@@ -1,0 +1,636 @@
+# Run the Quantum Metamorphic Testing (MorphQ)
+
+# This file can enable the concatenation of these metamorphic relationships:
+# - change_backend
+# - change_basis (commented out in this run)
+# - change_opt_level
+# - change_qubit_order
+# - change coupling map
+# - inject null-effect operations
+# - run separate sub-circuits and aggregate them with cartesian product
+# - add quantum register
+# - inject concrete parametrized values
+# - convert to qasm and then back to QuantumCircuit
+
+# Then it concatenates a differential testing setup
+# - change_backend
+# - change_opt_level
+
+# all gates used unless deprecated
+
+version: 53
+
+# FOLDER ORGANIZATION
+experiment_folder: data/qmt_v53/
+
+# SUBFOLDER STRUCTURE
+folder_structure:
+  programs:
+    metadata: null
+    metadata_exec: null
+    source: null
+    followup: null
+  coverage_reports: null
+
+# COVERAGE SETTINGS
+track_coverage: true
+coverage_settings_filepath: config/qmt_v53.cover
+programs_between_coverage_checkpoints_start: 64
+programs_between_coverage_checkpoints_cap: 1000
+
+# EXECUTION
+strategy_sample_size_estimation: qdiff  # qdiff | null
+fixed_sample_size: 8192
+
+# SAMPLE SIZE ESTIMATION PARAMETERS
+qdiff_user_defined_threshold: 0.1
+qdiff_confidence_level: 0.66666
+
+# DIVERGENCE THRESHOLD
+divergence_threshold_method: bh # holm | bonferroni | bh
+divergence_alpha_level: 0.05
+divergence_primary_test: ks
+
+# DETECTORS
+detectors:
+  - name: ks
+    test_long_name: Kolmogorov–Smirnov Test
+    detector_object: KS_Detector
+
+# GENERATION STRATEGY
+generation_strategy:
+  name: QiskitFuzzer
+  generator_object: QiskitFuzzer
+  random_seed: 42
+  min_n_qubits: 2  # at least 1
+  max_n_qubits: 11
+  min_n_ops: 0
+  max_n_ops: 30
+  backends:
+    - qasm_simulator
+  gate_set_dropout: 0.5
+  optimizations_dropout: 0.2
+  optimization_levels:
+      - 0
+      - 1
+      - 2
+      - 3
+  optimizations: []
+  gate_set:
+    - name: C3XGate
+      n_bits: 4
+      n_params: 1
+      shortname: mcx
+    - name: C3SXGate
+      n_bits: 4
+      n_params: 0
+    - name: C4XGate
+      n_bits: 5
+      n_params: 0
+      shortname: mcx
+    - name: CCXGate
+      n_bits: 3
+      n_params: 0
+      shortname: ccx
+    - name: DCXGate
+      n_bits: 2
+      n_params: 0
+      shortname: dcx
+    - name: CHGate
+      n_bits: 2
+      n_params: 0
+      shortname: ch
+    - name: CPhaseGate
+      n_bits: 2
+      n_params: 1
+      shortname: cp
+    - name: CRXGate
+      n_bits: 2
+      n_params: 1
+      shortname: crx
+    - name: CRYGate
+      n_bits: 2
+      n_params: 1
+      shortname: cry
+    - name: CRZGate
+      n_bits: 2
+      n_params: 1
+      shortname: crz
+    - name: CSwapGate
+      n_bits: 3
+      n_params: 0
+      shortname: cswap
+    - name: CSXGate
+      n_bits: 2
+      n_params: 0
+      shortname: csx
+    - name: CUGate
+      n_bits: 2
+      n_params: 4
+      shortname: cu
+    - name: CU1Gate
+      n_bits: 2
+      n_params: 1
+      shortname: cu1
+    - name: CU3Gate
+      n_bits: 2
+      n_params: 3
+      shortname: cu3
+    - name: CXGate
+      n_bits: 2
+      n_params: 0
+      shortname: cx
+    - name: CYGate
+      n_bits: 2
+      n_params: 0
+    - name: CZGate
+      n_bits: 2
+      n_params: 0
+      shortname: cz
+    - name: HGate
+      n_bits: 1
+      n_params: 0
+      shortname: h
+    - name: IGate
+      n_bits: 1
+      n_params: 0
+      shortname: id
+    - name: PhaseGate
+      n_bits: 1
+      n_params: 1
+      shortname: p
+    - name: RCCXGate
+      n_bits: 3
+      n_params: 0
+      shortname: rccx
+    - name: RC3XGate
+      n_bits: 4
+      n_params: 0
+      shortname: rcccx
+    - name: RXGate
+      n_bits: 1
+      n_params: 1
+      shortname: rx
+    - name: RXXGate
+      n_bits: 2
+      n_params: 1
+      shortname: rxx
+    - name: RYGate
+      n_bits: 1
+      n_params: 1
+      shortname: ry
+    - name: RYYGate
+      n_bits: 2
+      n_params: 1
+      shortname: ryy
+    - name: RZGate
+      n_bits: 1
+      n_params: 1
+      shortname: rz
+    - name: RZZGate
+      n_bits: 2
+      n_params: 1
+      shortname: rzz
+    - name: RZXGate
+      n_bits: 2
+      n_params: 1
+      shortname: rzx
+    - name: ECRGate
+      n_bits: 2
+      n_params: 0
+      shortname: ecr
+    - name: SGate
+      n_bits: 1
+      n_params: 0
+      shortname: s
+    - name: SdgGate
+      n_bits: 1
+      n_params: 0
+      shortname: sdg
+    - name: SwapGate
+      n_bits: 2
+      n_params: 0
+      shortname: swap
+    - name: iSwapGate
+      n_bits: 2
+      n_params: 0
+      shortname: iswap
+    - name: SXGate
+      n_bits: 1
+      n_params: 0
+      shortname: sx
+    - name: SXdgGate
+      n_bits: 1
+      n_params: 0
+      shortname: sxdg
+    - name: TGate
+      n_bits: 1
+      n_params: 0
+      shortname: t
+    - name: TdgGate
+      n_bits: 1
+      n_params: 0
+      shortname: tdg
+    - name: UGate
+      n_bits: 1
+      n_params: 3
+      shortname: u
+    - name: U1Gate
+      n_bits: 1
+      n_params: 1
+      shortname: u1
+    - name: U2Gate
+      n_bits: 1
+      n_params: 2
+      shortname: u2
+    - name: U3Gate
+      n_bits: 1
+      n_params: 3
+      shortname: u3
+    - name: XGate
+      n_bits: 1
+      n_params: 0
+      shortname: x
+    - name: YGate
+      n_bits: 1
+      n_params: 0
+      shortname: y
+    - name: ZGate
+      n_bits: 1
+      n_params: 0
+      shortname: z
+    # DEPRECATED
+    #- name: MSGate
+    #  n_bits: 0
+    #  n_params: 0
+    # ADVANCED - N-bits
+    #- name: MCPhaseGate
+    #  n_bits: 0
+    #  n_params: 0
+    # NOT IN DOC: https://qiskit.org/documentation/apidoc/circuit_library.html
+    #- name: XYGate
+    #  n_bits:
+    #  n_params: 0
+
+
+# METAMORPH PIPELINE:
+
+pipeline:
+  max_transformations_per_program: 4
+
+
+# METAMORPH RELATIONSHIPS
+# The following keys in the metamorphic strategies field refer to class names.
+
+transformation_mode: morphq # qdiff | morphq
+
+qdiff_metamorphic_strategies:
+  QdiffG1SwapToCnot:
+      min_to_change: 1
+      max_to_change: 1
+  QdiffG2TwoHToId:
+      add_identity_matrix: true
+  QdiffG3XToHSSH:
+      min_to_change: 1
+      max_to_change: 1
+  QdiffG4ZtoSS:
+      min_to_change: 1
+      max_to_change: 1
+  QdiffG5CZtoHCnotH:
+      min_to_change: 1
+      max_to_change: 1
+  QdiffG6TwoCzToId:
+      add_identity_matrix: true
+  QdiffG7CCNOTDecomposition:
+      min_to_change: 1
+      max_to_change: 1
+
+qdiff_diff_testing:
+  ChangeOptLevel:
+      levels:
+        - 0
+        - 1
+        - 2
+        - 3
+  ChangeBackend:
+      available_backends:
+        - aer_simulator
+        - aer_simulator_statevector
+        # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
+        - statevector_simulator
+        - aer_simulator_density_matrix
+        # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
+        # the stabilizer simulator works only if the circuit can be decomposed
+        # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
+        #- aer_simulator_stabilizer
+        #- aer_simulator_extended_stabilizer
+        - aer_simulator_matrix_product_state
+        # the unitary simulators are exponential in the number of qubits.
+        #- aer_simulator_unitary
+        #- aer_simulator_unitary_gpu
+        #- unitary_simulator
+        # From Qiskit doc:
+        # "A dense superoperator matrix simulation of an ideal or noisy circuit.
+        # This simulates the superoperator matrix of the circuit itself rather
+        # than the evolution of an initial quantum state. This method can
+        # simulate ideal and noisy gates, and reset, but does not support
+        # measurement.""
+        # QiskitError: 'Data for experiment "qc" could not be found.'
+        #- aer_simulator_superop
+        - qasm_simulator
+        #- pulse_simulator
+
+
+
+morphq_metamorphic_strategies:
+  ChangeOptLevel:
+      levels:
+        - 0
+        - 1
+        - 2
+        - 3
+  ChangeCouplingMap:
+      min_perc_nodes: 1
+      max_perc_nodes: 1.5
+      min_connection_density: 0.05
+      max_connection_density: 0.20
+      force_connected: true  # true | false
+  ChangeBackend:
+      available_backends:
+        - aer_simulator
+        - aer_simulator_statevector
+        # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
+        - statevector_simulator
+        - aer_simulator_density_matrix
+        # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
+        # the stabilizer simulator works only if the circuit can be decomposed
+        # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
+        #- aer_simulator_stabilizer
+        #- aer_simulator_extended_stabilizer
+        - aer_simulator_matrix_product_state
+        # the unitary simulators are exponential in the number of qubits.
+        #- aer_simulator_unitary
+        #- aer_simulator_unitary_gpu
+        #- unitary_simulator
+        # From Qiskit doc:
+        # "A dense superoperator matrix simulation of an ideal or noisy circuit.
+        # This simulates the superoperator matrix of the circuit itself rather
+        # than the evolution of an initial quantum state. This method can
+        # simulate ideal and noisy gates, and reset, but does not support
+        # measurement.""
+        # QiskitError: 'Data for experiment "qc" could not be found.'
+        #- aer_simulator_superop
+        - qasm_simulator
+        #- pulse_simulator
+  ChangeTargetBasis:
+      universal_gate_sets:
+        - gates:
+          - rx
+          - ry
+          - rz
+          - p
+          - cx
+        - gates:
+          - cx
+          - h
+          - s
+          - t
+        - gates:
+          - ccx  # TOFFOLI
+          - h
+  ChangeQubitOrder:
+      scramble_percentage: 1
+  RunIndependentPartitions:
+      n_partitions: 2
+  InjectNullEffect:
+      min_n_ops: 0
+      max_n_ops: 10
+      fuzzer_object: QiskitFuzzer
+      gate_set:
+      - name: C3XGate
+        n_bits: 4
+        n_params: 1
+        shortname: mcx
+      - name: C4XGate
+        n_bits: 5
+        n_params: 0
+        shortname: mcx
+      - name: CCXGate
+        n_bits: 3
+        n_params: 0
+        shortname: ccx
+      - name: DCXGate
+        n_bits: 2
+        n_params: 0
+        shortname: dcx
+      - name: CHGate
+        n_bits: 2
+        n_params: 0
+        shortname: ch
+      - name: CPhaseGate
+        n_bits: 2
+        n_params: 1
+        shortname: cp
+      - name: CRXGate
+        n_bits: 2
+        n_params: 1
+        shortname: crx
+      - name: CRYGate
+        n_bits: 2
+        n_params: 1
+        shortname: cry
+      - name: CRZGate
+        n_bits: 2
+        n_params: 1
+        shortname: crz
+      - name: CSwapGate
+        n_bits: 3
+        n_params: 0
+        shortname: cswap
+      - name: CSXGate
+        n_bits: 2
+        n_params: 0
+        shortname: csx
+      - name: CUGate
+        n_bits: 2
+        n_params: 4
+        shortname: cu
+      - name: CU1Gate
+        n_bits: 2
+        n_params: 1
+        shortname: cu1
+      - name: CU3Gate
+        n_bits: 2
+        n_params: 3
+        shortname: cu3
+      - name: CXGate
+        n_bits: 2
+        n_params: 0
+        shortname: cx
+      - name: CYGate
+        n_bits: 2
+        n_params: 0
+      - name: CZGate
+        n_bits: 2
+        n_params: 0
+        shortname: cz
+      - name: HGate
+        n_bits: 1
+        n_params: 0
+        shortname: h
+      - name: IGate
+        n_bits: 1
+        n_params: 0
+        shortname: id
+      - name: PhaseGate
+        n_bits: 1
+        n_params: 1
+        shortname: p
+      - name: RCCXGate
+        n_bits: 3
+        n_params: 0
+        shortname: rccx
+      - name: RC3XGate
+        n_bits: 4
+        n_params: 0
+        shortname: rcccx
+      - name: RXGate
+        n_bits: 1
+        n_params: 1
+        shortname: rx
+      - name: RXXGate
+        n_bits: 2
+        n_params: 1
+        shortname: rxx
+      - name: RYGate
+        n_bits: 1
+        n_params: 1
+        shortname: ry
+      - name: RYYGate
+        n_bits: 2
+        n_params: 1
+        shortname: ryy
+      - name: RZGate
+        n_bits: 1
+        n_params: 1
+        shortname: rz
+      - name: RZZGate
+        n_bits: 2
+        n_params: 1
+        shortname: rzz
+      - name: RZXGate
+        n_bits: 2
+        n_params: 1
+        shortname: rzx
+      - name: ECRGate
+        n_bits: 2
+        n_params: 0
+        shortname: ecr
+      - name: SGate
+        n_bits: 1
+        n_params: 0
+        shortname: s
+      - name: SdgGate
+        n_bits: 1
+        n_params: 0
+        shortname: sdg
+      - name: SwapGate
+        n_bits: 2
+        n_params: 0
+        shortname: swap
+      - name: iSwapGate
+        n_bits: 2
+        n_params: 0
+        shortname: iswap
+      - name: SXGate
+        n_bits: 1
+        n_params: 0
+        shortname: sx
+      - name: SXdgGate
+        n_bits: 1
+        n_params: 0
+        shortname: sxdg
+      - name: TGate
+        n_bits: 1
+        n_params: 0
+        shortname: t
+      - name: TdgGate
+        n_bits: 1
+        n_params: 0
+        shortname: tdg
+      - name: UGate
+        n_bits: 1
+        n_params: 3
+        shortname: u
+      - name: U1Gate
+        n_bits: 1
+        n_params: 1
+        shortname: u1
+      - name: U2Gate
+        n_bits: 1
+        n_params: 2
+        shortname: u2
+      - name: U3Gate
+        n_bits: 1
+        n_params: 3
+        shortname: u3
+      - name: XGate
+        n_bits: 1
+        n_params: 0
+        shortname: x
+      - name: YGate
+        n_bits: 1
+        n_params: 0
+        shortname: y
+      - name: ZGate
+        n_bits: 1
+        n_params: 0
+        shortname: z
+      # NOT CLEAR HOW MANY BITS OR IF IT NEEDS ADDITIONAL CONTROL BITS
+      #- name: C3SXGate
+      #  n_bits: 4
+      #  n_params: 0
+      # DEPRECATED
+      #- name: MSGate
+      #  n_bits: 0
+      #  n_params: 0
+      # ADVANCED - N-bits
+      #- name: MCPhaseGate
+      #  n_bits: 0
+      #  n_params: 0
+      # NOT IN DOC: https://qiskit.org/documentation/apidoc/circuit_library.html
+      #- name: XYGate
+      #  n_bits:
+      #  n_params: 0
+  AddUnusedRegister:
+      min_n_bit: 1
+      max_n_bit: 10
+      reg_types:
+        - QuantumRegister
+        # - ClassicalRegister
+        # ClassicalRegister leads to a longer output string because qiskit
+        # measures all the classical registers
+      after_sections:
+        - CIRCUIT
+        - MEASURE
+  InjectParameters:
+      min_n_params: 1
+      max_n_params: null  # null to consider all concrete values in the program
+  ToQasmAndBack:
+      qasm_version: 2
+      before_sections:
+      - OPTIMIZATION_LEVEL
+      - EXECUTION
+
+
+
+# BUDGET
+budget_time: null  # SECONDS: null for continuous running
+budget_time_per_program_couple: 120 # SECONDS: null for continuous running
+
+
+# DEBUGGER
+max_runs_per_suspect_bug: 10
+max_seconds_per_suspect_bug: 20
+update_db_every_n_programs: 1
+primary_detector_for_debug: ks
