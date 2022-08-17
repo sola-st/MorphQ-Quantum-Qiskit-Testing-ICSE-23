@@ -1,4 +1,4 @@
-# Run the Quantum Metamorphic Testing (QDiff re-implementation)
+# Run the Quantum Metamorphic Testing (MorphQ)
 
 # This file can enable the concatenation of these metamorphic relationships:
 # - change_backend

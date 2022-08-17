@@ -7,7 +7,6 @@ from scipy.stats import ks_2samp
 import numpy as np
 
 import torch
-from torch_two_sample import statistics_diff
 from scipy.spatial.distance import jensenshannon
 from lib.inspector import convert_dict_to_df
 
@@ -226,6 +225,13 @@ class Energy_Detector(Detector):
 
     def check(self, result_A, result_B, random_seed=None):
         """Compare two distributions with Energy Test"""
+        try:
+            from torch_two_sample import statistics_diff
+        except ImportError:
+            raise ImportError(
+                "torch_two_sample is not installed. " +
+                "Please install it from " +
+                "https://github.com/josipd/torch-two-sample.")
         self.load_results(result_A, result_B)
         # convert the binary string in a vector
         n_subsamples = 100
