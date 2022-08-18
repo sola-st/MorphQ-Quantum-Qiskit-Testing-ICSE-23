@@ -1,0 +1,1 @@
+{"res_A": {"0010": 388, "0000": 304}, "platform_A": "source", "res_B": {"0010": 326, "0000": 366}, "platform_B": "follow_up", "exceptions": {"source": null, "followup": null}, "time_exec": 0.496510093100369}
