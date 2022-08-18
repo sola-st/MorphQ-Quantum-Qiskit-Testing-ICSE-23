@@ -1,0 +1,1 @@
+{"res_A": {"111": 116, "100": 270, "110": 103}, "platform_A": "source", "res_B": {"111": 140, "100": 219, "110": 130}, "platform_B": "follow_up", "exceptions": {"source": null, "followup": null}, "time_exec": 0.3956342351157218}
