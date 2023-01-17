@@ -296,4 +296,3 @@ dependencies:
     - wrapt==1.13.3
     - yfinance==0.1.64
     - z3-solver==4.8.14.0
-prefix: /home/paltenmo/.conda/envs/MorphQ

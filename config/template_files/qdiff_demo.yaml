@@ -1,16 +1,21 @@
-# Run the Quantum Metamorphic Testing (MorphQ)
+# Run the Quantum Metamorphic Testing (QDiff re-implementation)
+
+# Warning: this is a DEMO version with a lower number of qubits than the
+# configuration used for the results in the main paper.
+# For the paper configuration check the file in the same folder: qdiff.yaml
 
 # This file can enable the concatenation of these metamorphic relationships:
+# - Qdiff G1 SwapToCnot
+# - Qdiff G2 TwoHToId
+# - Qdiff G3 XToHSSH
+# - Qdiff G4 ZtoSS
+# - Qdiff G5 CZtoHCnotH
+# - Qdiff G6 TwoCzToId
+# - Qdiff G7 CCNOTDecomposition
+
+# Then it concatenates a differential testing setup
 # - change_backend
-# - change_basis (commented out in this run)
 # - change_opt_level
-# - change_qubit_order
-# - change coupling map
-# - inject null-effect operations
-# - run separate sub-circuits and aggregate them with cartesian product
-# - add quantum register
-# - inject concrete parametrized values
-# - convert to qasm and then back to QuantumCircuit
 
 # all gates used unless deprecated
 
@@ -59,7 +64,7 @@ generation_strategy:
   generator_object: QiskitFuzzer
   random_seed: 42
   min_n_qubits: 2  # at least 1
-  max_n_qubits: 11
+  max_n_qubits: 5
   min_n_ops: 0
   max_n_ops: 30
   backends:
@@ -272,13 +277,13 @@ generation_strategy:
 # METAMORPH PIPELINE:
 
 pipeline:
-  max_transformations_per_program: 4
+  max_transformations_per_program: 1
 
 
 # METAMORPH RELATIONSHIPS
 # The following keys in the metamorphic strategies field refer to class names.
 
-transformation_mode: morphq # qdiff | morphq
+transformation_mode: qdiff # qdiff | morphq
 
 qdiff_metamorphic_strategies:
   QdiffG1SwapToCnot:
@@ -600,7 +605,7 @@ morphq_metamorphic_strategies:
       #  n_params: 0
   AddUnusedRegister:
       min_n_bit: 1
-      max_n_bit: 10
+      max_n_bit: 3
       reg_types:
         - QuantumRegister
         # - ClassicalRegister

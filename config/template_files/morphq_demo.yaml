@@ -1,5 +1,9 @@
 # Run the Quantum Metamorphic Testing (MorphQ)
 
+# Warning: this is a DEMO version with a lower number of qubits than the
+# configuration used for the results in the main paper.
+# For the paper configuration check the file in the same folder: morphq.yaml
+
 # This file can enable the concatenation of these metamorphic relationships:
 # - change_backend
 # - change_basis (commented out in this run)
@@ -59,7 +63,7 @@ generation_strategy:
   generator_object: QiskitFuzzer
   random_seed: 42
   min_n_qubits: 2  # at least 1
-  max_n_qubits: 11
+  max_n_qubits: 5
   min_n_ops: 0
   max_n_ops: 30
   backends:
@@ -600,7 +604,7 @@ morphq_metamorphic_strategies:
       #  n_params: 0
   AddUnusedRegister:
       min_n_bit: 1
-      max_n_bit: 10
+      max_n_bit: 3
       reg_types:
         - QuantumRegister
         # - ClassicalRegister
