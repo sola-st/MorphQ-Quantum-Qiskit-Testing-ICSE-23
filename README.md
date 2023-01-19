@@ -11,8 +11,7 @@ You can run MorphQ with two objectives:
 # Getting Started
 
 1. Check that your setup meets the [REQUIREMENTS.md](REQUIREMENTS.md).
-2. Clone this repository: `git clone https://github.com/sola-st/MorphQ-Quantum-Qiskit-Testing-ICSE-23.git`
-3. Follow the installation instructions in [INSTALL.md](INSTALL.md).
+2. Follow the installation instructions in [INSTALL.md](INSTALL.md).
 
 
 # Reproduce the Paper Figures (Level 1)
@@ -22,17 +21,15 @@ This replication level allows other researcher to independently reproduce the re
 Follow this steps:
 1. Download the datasets used in our evaluation section from this [link](https://doi.org/10.6084/m9.figshare.20703091.v1).
 
-2. unzip the archive. Be patient since it might take some time, since they are 2GB of relatively small files.
+2. unzip the archive. Be patient since it might take some time, since they are 2GB of relatively small files. And copy the folders `qmt_v52` and `qmt_v53` in the `data` directory.
 
-3. copy the folders `qmt_v52` and `qmt_v53` in the `data` directory.
-
-4. to open jupyter notebook, run the following in your terminal:
+3. to open jupyter notebook, run the following in your terminal:
     ```bash
     conda activate MorphQ
     jupyter notebook
     ```
 
-5. In the jupyter notebook web interface, navigate to and execute top-to-bottom the following notebook: [notebooks/RQs_Reproduce_Analysis_Results.ipynb](notebooks/RQs_Reproduce_Analysis_Results.ipynb).
+4. In the jupyter notebook web interface, navigate to and execute top-to-bottom the following notebook: [notebooks/RQs_Reproduce_Analysis_Results.ipynb](notebooks/RQs_Reproduce_Analysis_Results.ipynb).
 
 **Inspect the warnings found during our empirical evaluation:**
 To see the warnings described in our empirical evaluation of the paper refer to the [`warnings/program_pairs`](warnings/program_pairs) folder.
