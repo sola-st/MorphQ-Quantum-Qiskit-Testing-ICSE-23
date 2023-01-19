@@ -16,7 +16,7 @@ You can run MorphQ with two objectives:
 
 # Reproduce the Paper Figures (Level 1)
 
-This replication level allows other researcher to independently reproduce the results of our paper starting form the experimental data we collected during our empirical evaluation.
+This replication level allows other researcher to independently reproduce the results of our paper starting from the experimental data we collected during our empirical evaluation.
 
 Follow this steps:
 1. Download the datasets used in our evaluation section from this [link](https://doi.org/10.6084/m9.figshare.20703091.v1).
@@ -33,7 +33,7 @@ Follow this steps:
 
 **Inspect the warnings found during our empirical evaluation:**
 To see the warnings described in our empirical evaluation of the paper refer to the [`warnings/program_pairs`](warnings/program_pairs) folder.
-There you will find a subfolder for each program pairs which contains:
+There you will find a subfolder for each program pair which contains:
 - the source quantum program: `source.py`
 - the follow-up quantum program generated via metamorphic transformations: `follow-up.py`
 - the metadata of the generation of the program pair: `metadata.json`
@@ -43,7 +43,9 @@ There you will find a subfolder for each program pairs which contains:
 
 # Run MorphQ For a New Testing Campaign (Level 2)
 
-This guide is intended for researchers who want to: (1) run their own testing campaigns to find new bugs in Qiskit with MorphQ, (2) compare MorphQ with a novel automatic testing approach of the Qiskit platform.
+This guide is intended for researchers who want to:
+1. run their own testing campaigns to find new bugs in Qiskit with MorphQ,
+2. compare MorphQ with a novel automatic testing approach of the Qiskit platform.
 
 A MorphQ run is configured via a YAML file, read next to learn how to configure your own run. The one used for our experiment are store in the [config](config) folder:
 - [qmt_v53.yaml](config/qmt_v53.yaml): configuration file used for our experiment for the actual **MorphQ**.
