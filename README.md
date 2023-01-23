@@ -13,6 +13,8 @@ You can run MorphQ with two objectives:
 1. Check that your setup meets the [REQUIREMENTS.md](REQUIREMENTS.md).
 2. Follow the installation instructions in [INSTALL.md](INSTALL.md).
 
+Note: if you are more familiar with docker or you are having trouble with the installation on your system, you can also build a docker image based on Ubuntu.
+We provide a [Dockerfile](Dockerfile) which will configure an Ubuntu container containing all you need to run MorphQ. See [DOCKER.md](DOCKER.md) for instructions. We recommend reading this README first and then the docker instructions.
 
 # Reproduce the Paper Figures (Level 1)
 
