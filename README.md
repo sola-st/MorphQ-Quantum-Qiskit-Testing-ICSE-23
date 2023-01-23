@@ -19,9 +19,10 @@ You can run MorphQ with two objectives:
 This replication level allows other researcher to independently reproduce the results of our paper starting from the experimental data we collected during our empirical evaluation.
 
 Follow this steps:
-1. Download the datasets used in our evaluation section from this [link](https://doi.org/10.6084/m9.figshare.20703091.v1).
+1. Download the datasets used in our evaluation section from this [link](https://doi.org/10.6084/m9.figshare.20703091.v2).
 
-2. unzip the archive. Be patient since it might take some time, since they are 2GB of relatively small files. And copy the folders `qmt_v52` and `qmt_v53` in the `data` directory.
+
+2. unzip the archive. And copy the folders `qmt_v52` and `qmt_v53` in the `data` directory.
 
 3. to open jupyter notebook, run the following in your terminal:
     ```bash
