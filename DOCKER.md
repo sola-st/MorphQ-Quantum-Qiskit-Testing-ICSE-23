@@ -19,7 +19,7 @@ docker run -it --rm -p 8888:8888 mattepalte/morphq:latest
 
 ### LEVEL 1: Reproduce the Paper Figures
 
-1. To run the run the notebook in the Docker container, run the following command:
+1. To run the notebook in the Docker container, run the following command:
     ```bash
     jupyter notebook --allow-root --no-browser --ip=0.0.0.0 --port=8888
     ```
@@ -42,5 +42,23 @@ docker run -it --rm -p 8888:8888 mattepalte/morphq:latest
     ```
 1. Congratulations! You successfully run MorphQ.
 
-Note that your newly generated data will be transient in this Docker, thus if you are interested in accessing them you either need to mount a volume or copy the data folder with `docker cp`.
+**Persisting Data**
 
+Note that your newly generated data will be transient in this Docker, thus if you are interested in accessing them need to mount a folder on your host mahcine (aka laptop) as a volume in the docker container.
+
+Follow these steps, while in the root folder of the cloned repository:
+1. Create a data folder to store all the docker generated data:
+    ```bash
+    mkdir data_docker
+    ```
+2. Run the following command to run MorphQ with the new configuration (if you use another OS instead of Ubuntu, the syntax might be a little different, see this [link](https://stackoverflow.com/a/41489151)):
+    ```bash
+    docker run -it --rm -p 8888:8888 -v $(pwd)/data_docker:/opt/data mattepalte/morphq:latest
+    ```
+3. Run the steps in Level 2 above:
+    ```bash
+    python3 -m lib.generate_new_config --version 01 # select morphq_demo.yaml as the base configuration file
+    python3 -m lib.qmt config/qmt_v01.yaml
+    ```
+4. When enough data is generated, stop MorphQ by pressing `Ctrl+C`, and type `exit` to exit the docker container.
+4. You can now access the data in the `data_docker` folder on your laptop even when the docker is not running.
