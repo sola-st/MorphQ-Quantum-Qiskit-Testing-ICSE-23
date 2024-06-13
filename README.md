@@ -11,6 +11,13 @@ You can run MorphQ with two objectives:
 1. [Replication Package Level 1](#reproduce-the-paper-figures-level-1): reproduce paper's results.
 2. [Replication Package Level 2](#run-morphq-for-a-new-testing-campaign-level-2): run new testing campaigns to find new bugs in Qiskit. or compare your new testing method against MorphQ. (Note: you can also use our method in the Qdiff configuration to compare against QDiff transformations.)
 
+# Paper
+
+[MorphQ: Metamorphic Testing of the Qiskit Quantum Computing Platform](https://software-lab.org/publications/icse2023_MorphQ.pdf)
+
+Matteo Paltenghi, Michael Pradel.
+IEEE/ACM International Conference on Software Engineering
+
 # Getting Started
 
 1. Check that your setup meets the [REQUIREMENTS.md](REQUIREMENTS.md).
