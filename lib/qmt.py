@@ -43,10 +43,10 @@ from lib.utils_db import get_program_ids_in_table
 from lib.generation_strategy_python import *
 from lib.detectors import *
 
-from lib.qfl import estimate_n_samples_needed
-from lib.qfl import setup_environment
-from lib.qfl import scan_for_divergence
-from lib.qfl import detect_divergence
+from lib.utils_qfl import estimate_n_samples_needed
+from lib.utils_qfl import setup_environment
+from lib.utils_qfl import scan_for_divergence
+from lib.utils_qfl import detect_divergence
 
 from lib.metamorph import *
 from lib.metamorph import MetamorphicRelationship
@@ -112,11 +112,11 @@ def fuzz_source_program(
             replace=False))
 
     n_qubits = random.randint(
-            config_generation["min_n_qubits"],
-            config_generation["max_n_qubits"])
+        config_generation["min_n_qubits"],
+        config_generation["max_n_qubits"])
     n_ops = random.randint(
-            config_generation["min_n_ops"],
-            config_generation["max_n_ops"])
+        config_generation["min_n_ops"],
+        config_generation["max_n_ops"])
     opt_level = int(np.random.choice(config_generation["optimization_levels"]))
     target_gates = None
 
