@@ -206,6 +206,11 @@ def remap_qubits(source_code: str,
                  id_classical_reg: str,
                  mapping: Dict[int, int]):
     """Map the qubits indexes to another set of qubit indexes."""
+    # print("INPUT CODE:")
+    # print(source_code)
+
+    # print("MAPPING:")
+    # print(mapping)
 
     tree = ast.parse(source_code)
 
@@ -512,7 +517,7 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
                 new_instr["cregs"], new_instr["cbits"] = [], []
                 if len(node.keywords) == 2:
                     to_upack_qubits = [
-                        (e.value.id, e.slice.value.value)
+                        (e.value.id, e.slice.value)
                         for e in node.keywords[0].value.elts
                     ]
                     if len(to_upack_qubits) > 0:
@@ -520,7 +525,7 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
                             zip(*list(to_upack_qubits))
 
                     to_upack_bits = [
-                        (e.value.id, e.slice.value.value)
+                        (e.value.id, e.slice.value)
                         for e in node.keywords[1].value.elts
                     ]
                     if len(to_upack_bits) > 0:

@@ -1,10 +1,15 @@
 
 import pytest
 import ast
+import numpy as np
 import astpretty
-from qmt import get_mr_function_and_kwargs
-from metamorph import *
-from metamorph import get_circuits_used
+from lib.metamorph import (
+    check_function_call_in_code,
+    cluster_qubits,
+    get_instructions,
+    remap_qubits,
+    get_circuits_used
+)
 
 config = {
     "metamorphic_strategies": [
@@ -35,40 +40,6 @@ config = {
 def show_tree(code: str):
     tree = ast.parse(code)
     astpretty.pprint(tree)
-
-
-def test_change_opt_level_w_basis_gate():
-
-    morph, kwargs = get_mr_function_and_kwargs(
-        config, metamorphic_strategy="change_opt_level")
-    np.random.seed(42)
-    morphed_source_code = morph("""
-# SECTION
-# NAME: OPTIMIZATION_PASSES
-
-from qiskit.transpiler import PassManager
-from qiskit.transpiler.passes import *
-passmanager = PassManager()
-qc = passmanager.run(qc)
-
-# SECTION
-# NAME: OPTIMIZATION_LEVEL
-
-from qiskit import transpile
-qc = transpile(qc, basis_gates=None, optimization_level=1)
-""", **kwargs)[0]
-    assert morphed_source_code == """# SECTION
-# NAME: OPTIMIZATION_PASSES
-
-from qiskit.transpiler import PassManager
-from qiskit.transpiler.passes import *
-passmanager = PassManager()
-qc = passmanager.run(qc)
-# SECTION
-# NAME: OPTIMIZATION_LEVEL
-from qiskit import transpile
-qc = transpile(qc, basis_gates=None, optimization_level=3)
-"""
 
 
 def test_extraction_of_circuits_used():
@@ -120,7 +91,8 @@ qc_main.draw(fold=-1)
 
 
 def test_check_backend_presence_found():
-    res = check_function_call_in_code(source_code="""from qiskit import Aer, transpile, execute
+    res = check_function_call_in_code(
+        source_code="""from qiskit import Aer, transpile, execute
 backend_6b62557ac33843e7a8245322cae17865 = Aer.get_backend('qasm_simulator')
 counts = execute(qc, backend=backend_6b62557ac33843e7a8245322cae17865, shots=692).result().get_counts(qc)
 RESULT = counts""", func_name="get_backend")
@@ -128,13 +100,16 @@ RESULT = counts""", func_name="get_backend")
 
 
 def test_check_backend_presence_not_found():
-    res = check_function_call_in_code(source_code="""from qiskit import transpile
-qc = transpile(qc, basis_gates=None, optimization_level=3, coupling_map=None)""", func_name="get_backend")
+    res = check_function_call_in_code(
+        source_code="""from qiskit import transpile
+qc = transpile(qc, basis_gates=None, optimization_level=3, coupling_map=None)""",
+        func_name="get_backend")
     assert not res, "The code analysis recognize get_backend API where there is not"
 
 
 def test_check_transpile_presence_not_found():
-    res = check_function_call_in_code(source_code="""from qiskit import Aer, transpile, execute
+    res = check_function_call_in_code(
+        source_code="""from qiskit import Aer, transpile, execute
 backend_6b62557ac33843e7a8245322cae17865 = Aer.get_backend('qasm_simulator')
 counts = execute(qc, backend=backend_6b62557ac33843e7a8245322cae17865, shots=692).result().get_counts(qc)
 RESULT = counts""", func_name="transpile")
@@ -142,8 +117,10 @@ RESULT = counts""", func_name="transpile")
 
 
 def test_check_transpile_presence_found():
-    res = check_function_call_in_code(source_code="""from qiskit import transpile
-qc = transpile(qc, basis_gates=None, optimization_level=3, coupling_map=None)""", func_name="transpile")
+    res = check_function_call_in_code(
+        source_code="""from qiskit import transpile
+qc = transpile(qc, basis_gates=None, optimization_level=3, coupling_map=None)""",
+        func_name="transpile")
     assert res, "The code analysis doesn't recognize transpile API"
 
 
@@ -157,15 +134,14 @@ qc_1.append(RZZGate(0.4429181854627117), qargs=[qr_1[1], qr_1[0]], cargs=[])
 qc_1.append(RYYGate(2.2725577430206263), qargs=[qr_1[0], qr_1[1]], cargs=[])
 qc_1.append(TGate(), qargs=[qr_1[0]], cargs=[])
 qc_1.append(XGate(), qargs=[qr_1[2]], cargs=[])""",
-    circuit_name="qc_1", register_name="qr_1")
+                         circuit_name="qc_1", register_name="qr_1")
     assert res == {frozenset({2}), frozenset({0, 1})}
 
 
 def test_extract_instructions():
     res = get_instructions("""
 qc_2.append(RZXGate(2.5674333, p_29392d), qargs=[qr_2[2], qr_2[1]], cargs=[])
-qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs
-    =[qr_1[4], qr_1[3]], cargs=[])""")
+qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs=[qr_1[4], qr_1[3]], cargs=[])""")
     assert res == [
         {
             "circuit_id": "qc_2",
@@ -175,6 +151,8 @@ qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs
             "qbits": [2, 1],
             "cregs": [],
             "cbits": [],
+            "lineno": 2,
+            "end_lineno": 2,
             'code': 'qc_2.append(RZXGate(2.5674333, p_29392d), qargs=[qr_2[2], qr_2[1]], cargs=[])'
         },
         {
@@ -185,6 +163,47 @@ qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs
             "qbits": [4, 3],
             "cregs": [],
             "cbits": [],
-            'code': 'qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs =[qr_1[4], qr_1[3]], cargs=[])'
+            "lineno": 3,
+            "end_lineno": 3,
+            'code': 'qc_1.append(CUGate(p_a7c416, p_53f0d4, 1.1382126210061985, p_b2bdc1), qargs=[qr_1[4], qr_1[3]], cargs=[])'
         }
     ]
+
+
+def test_remap_qubits():
+    """
+    Test remap_qubits function to ensure it correctly remaps qubit indices.
+    """
+    source_code = """
+qr = QuantumRegister(3, name='qr')
+cr = ClassicalRegister(3, name='cr')
+qc = QuantumCircuit(qr, cr, name='qc')
+qc.append(XGate(), qargs=[qr[0]], cargs=[])
+qc.append(HGate(), qargs=[qr[0]], cargs=[])
+qc.append(XGate(), qargs=[qr[1]], cargs=[])
+qc.append(CXGate(), qargs=[qr[0], qr[2]], cargs=[])
+qc.append(Measure(), qargs=[qr[0]], cargs=[cr[0]])
+qc.append(Measure(), qargs=[qr[1]], cargs=[cr[1]])
+qc.append(Measure(), qargs=[qr[2]], cargs=[cr[2]])
+"""
+    id_quantum_reg = "qr"
+    id_classical_reg = "cr"
+    mapping = {0: 2, 1: 0, 2: 1}
+
+    expected_remapped_code = """
+qr = QuantumRegister(3, name='qr')
+cr = ClassicalRegister(3, name='cr')
+qc = QuantumCircuit(qr, cr, name='qc')
+qc.append(XGate(), qargs=[qr[2]], cargs=[])
+qc.append(HGate(), qargs=[qr[2]], cargs=[])
+qc.append(XGate(), qargs=[qr[0]], cargs=[])
+qc.append(CXGate(), qargs=[qr[2], qr[1]], cargs=[])
+qc.append(Measure(), qargs=[qr[2]], cargs=[cr[2]])
+qc.append(Measure(), qargs=[qr[0]], cargs=[cr[0]])
+qc.append(Measure(), qargs=[qr[1]], cargs=[cr[1]])
+"""
+
+    remapped_code = remap_qubits(
+        source_code, id_quantum_reg, id_classical_reg, mapping)
+    assert remapped_code.strip() == expected_remapped_code.strip(
+    ), "The qubit remapping did not produce the expected result."

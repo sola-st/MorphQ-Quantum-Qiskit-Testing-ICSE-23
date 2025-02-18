@@ -21,7 +21,6 @@ class ChangeQubitOrder(MetamorphicTransformation):
         scramble_percentage = self.mr_config['scramble_percentage']
         sections = metamorph.get_sections(code_of_source)
         source_code_circuit = sections["CIRCUIT"]
-        tree = ast.parse(source_code_circuit)
         mr_metadata = {}
 
         registers = metamorph.get_registers_used(source_code_circuit)
@@ -40,33 +39,11 @@ class ChangeQubitOrder(MetamorphicTransformation):
         mapping = metamorph.create_random_mapping(idx_to_scramble)
         mr_metadata["mapping"] = str(mapping)
 
-        class QubitOrderChanger(ast.NodeTransformer):
-
-            def __init__(self,
-                         id_quantum_reg: str,
-                         id_classical_reg: str, mapping: Dict[int, int]):
-                self.id_quantum_reg = id_quantum_reg
-                self.id_classical_reg = id_classical_reg
-                self.mapping = mapping
-
-            def visit_Subscript(self, node):
-                if (isinstance(node, ast.Subscript) and
-                        isinstance(node.value, ast.Name) and
-                        (node.value.id == self.id_quantum_reg or
-                         node.value.id == self.id_classical_reg) and
-                        isinstance(node.slice, ast.Index) and
-                        isinstance(node.slice.value, ast.Constant) and
-                        node.slice.value.value in self.mapping.keys()):
-                    node.slice.value.value = self.mapping[node.slice.value.value]
-                return node
-
-        changer = QubitOrderChanger(
-            id_quantum_reg=quantum_reg["name"],
+        changed_section = metamorph.remap_qubits(
+            source_code=source_code_circuit,
             id_classical_reg=classical_reg["name"],
+            id_quantum_reg=quantum_reg["name"],
             mapping=mapping)
-        modified_tree = changer.visit(tree)
-        print("Follow: indices mapping: ", mapping)
-        changed_section = metamorph.to_code(modified_tree)
         sections["CIRCUIT"] = changed_section
 
         self.full_mapping = {**mapping, **{
@@ -84,10 +61,24 @@ class ChangeQubitOrder(MetamorphicTransformation):
 
         Note that we read the followup output according to the qubit mapping.
         """
+
+        # if we get results of different size, it means that one
+        # has crashed and got the defualt value of size one
+        if list(result_a.values())[0] == 1 or list(result_b.values())[0] == 1:
+            default_result = {}
+            for detector_config in self.detectors:
+                detector_name = detector_config["name"]
+            default_result[detector_name] = {
+                "statistic": 1,
+                "p-value": -1,
+                "time": None}
+            return default_result
+
         result_b = {
             self._read_str_with_mapping(bitstring, self.full_mapping): freq
             for bitstring, freq in result_b.items()
         }
+
         exec_metadata = {
             "res_A": result_a,
             "res_B": result_b

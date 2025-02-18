@@ -11,7 +11,7 @@ pip install qiskit==1.2.1 qiskit-aer==0.15.1 qiskit-ibm-runtime==0.29.1
 
 # install some common packages used in the tool
 pip install click termcolor pyyaml pandas coverage matplotlib seaborn
-pip install astunparse networkx Deprecated tqdm
+pip install astunparse networkx Deprecated tqdm pytest astpretty
 
 # export the requirements
 pip list --format=freeze > requirements.txt

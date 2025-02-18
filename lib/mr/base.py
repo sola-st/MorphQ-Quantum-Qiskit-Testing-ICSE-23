@@ -1,6 +1,7 @@
 from abc import ABC
 from abc import abstractmethod
 import random
+import numpy as np
 from typing import List, Tuple, Dict, Any
 from timeit import default_timer as timer
 
@@ -16,6 +17,7 @@ class MetamorphicTransformation(ABC):
         self.name = name
         if seed is not None:
             random.seed(seed)
+            np.random.seed(seed)
         classname = self.__class__.__name__
         if classname in metamorphic_strategies_config.keys():
             self.mr_config = metamorphic_strategies_config[classname]
