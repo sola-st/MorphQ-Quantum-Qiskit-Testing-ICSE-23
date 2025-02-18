@@ -2,8 +2,9 @@ from abc import ABC
 from abc import abstractmethod
 import random
 from typing import List, Tuple, Dict, Any
+from timeit import default_timer as timer
 
-from lib.qfl import detect_divergence
+from lib.utils_qfl import detect_divergence
 
 
 class MetamorphicTransformation(ABC):
@@ -49,4 +50,3 @@ class MetamorphicTransformation(ABC):
 
     def __str__(self):
         return f"MetamorphicTransformation({self.name})"
-

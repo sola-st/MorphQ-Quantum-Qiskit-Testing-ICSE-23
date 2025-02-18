@@ -9,8 +9,8 @@ import scipy
 
 import qiskit
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit import Aer, transpile
-from qiskit.tools.visualization import circuit_drawer
+# from qiskit import Aer, transpile
+from qiskit.visualization import circuit_drawer
 from qiskit.quantum_info import state_fidelity
 
 from typing import List, Dict, Any, Tuple
@@ -219,21 +219,40 @@ def remap_qubits(source_code: str,
             self.mapping = mapping
 
         def visit_Subscript(self, node):
-            if (isinstance(node, ast.Subscript) and
+            if (
+                    isinstance(node, ast.Subscript) and
                     isinstance(node.value, ast.Name) and
-                    (node.value.id == self.id_quantum_reg or
-                     node.value.id == self.id_classical_reg) and
-                    isinstance(node.slice, ast.Index) and
-                    isinstance(node.slice.value, ast.Constant) and
-                    node.slice.value.value in self.mapping.keys()):
-                node.slice.value.value = self.mapping[node.slice.value.value]
+                    (node.value.id == self.id_quantum_reg or node.value.id == self.id_classical_reg) and
+                    isinstance(node.slice, ast.Constant) and
+                    node.slice.value in self.mapping.keys()):
+                # print(
+                #     f"Identified~ replacing {node.slice.value} with "
+                #     f"{self.mapping[node.slice.value]}")
+                node.slice.value = self.mapping[node.slice.value]
+                # print(node)
+                # breakpoint()
+            # if (isinstance(node, ast.Subscript) and
+            #         isinstance(node.value, ast.Name) and
+            #         (node.value.id == self.id_quantum_reg or
+            #          node.value.id == self.id_classical_reg) and
+            #         isinstance(node.slice, ast.Constant)
+            #         node.slice.value in self.mapping.keys()):
+            #     print(
+            #         f"Identified~ replacing {node.slice.value.value} with "
+            #         f"{self.mapping[node.slice.value.value]}")
+            #     node.slice.value = self.mapping[node.slice.value]
             return node
 
     changer = QubitOrderChanger(
         id_quantum_reg=id_quantum_reg,
         id_classical_reg=id_classical_reg,
         mapping=mapping)
+    # print("mapping: ", mapping)
+    # print("BEFORE")
+    # print(source_code)
     modified_tree = changer.visit(tree)
+    # print("AFTER")
+    # print(to_code(modified_tree))
     return to_code(modified_tree)
 
 
@@ -328,7 +347,7 @@ def get_registers_used(circ_definition: str) -> List[Dict[str, Any]]:
                     isinstance(node.value, ast.Call) and
                     isinstance(node.value.func, ast.Name) and
                     node.value.func.id in [
-                            "QuantumRegister", "ClassicalRegister"] and
+                "QuantumRegister", "ClassicalRegister"] and
                     isinstance(node.value.args[0], ast.Constant)):
                 register_type = node.value.func.id
                 identifier = node.targets[0].id
@@ -456,6 +475,7 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
 
         def recursive(func):
             """ decorator to make visitor work recursive """
+
             def wrapper(self, node):
                 func(self, node)
                 for child in ast.iter_child_nodes(node):
@@ -464,8 +484,8 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
 
         @recursive
         def visit_Call(self, node):
-            #import pdb
-            #pdb.set_trace()
+            # import pdb
+            # pdb.set_trace()
 
             condition = (
                 # append call
@@ -513,7 +533,10 @@ def get_instructions(circ_with_instructions: str) -> List[Dict[str, str]]:
                 new_instr["cbits"] = list(new_instr["cbits"])
                 new_instr["lineno"] = int(node.lineno)
                 new_instr["end_lineno"] = int(node.end_lineno)
-                new_instr["code"] = to_code(node).replace("\n", "").replace("\t", "").replace("    ", " ")
+                new_instr["code"] = to_code(node).replace(
+                    "\n", "").replace(
+                    "\t", "").replace(
+                    "    ", " ")
 
                 self.instructions.append(new_instr)
 
@@ -622,7 +645,6 @@ def get_consecutive_gates(
     df_suitable_line_pairs = pd.DataFrame.from_records(suitable_line_pairs)
 
     return df_suitable_line_pairs.to_dict("records")
-
 
 
 @deprecated(version='qmt_v08', reason="You should use ChangeBackend class")
@@ -786,7 +808,7 @@ def mr_change_coupling_map(source_code: str,
                    if r["type"] == "QuantumRegister"][0]
     classical_reg = [r for r in registers
                      if r["type"] == "ClassicalRegister"][0]
-    assert(quantum_reg["size"] == classical_reg["size"])
+    assert (quantum_reg["size"] == classical_reg["size"])
 
     n_bits_declared = quantum_reg["size"]
     n_bits = random.randint(
@@ -853,7 +875,7 @@ def mr_change_qubit_order(source_code: str, scramble_percentage: float) -> str:
                    if r["type"] == "QuantumRegister"][0]
     classical_reg = [r for r in registers
                      if r["type"] == "ClassicalRegister"][0]
-    assert(quantum_reg["size"] == classical_reg["size"])
+    assert (quantum_reg["size"] == classical_reg["size"])
 
     n_idx = quantum_reg["size"]
     idx_to_scramble = np.random.choice(
@@ -931,7 +953,7 @@ def mr_inject_circuits_and_inverse(
                    if r["type"] == "QuantumRegister"][0]
     classical_reg = [r for r in registers
                      if r["type"] == "ClassicalRegister"][0]
-    assert(quantum_reg["size"] == classical_reg["size"])
+    assert (quantum_reg["size"] == classical_reg["size"])
     n_bits_declared = quantum_reg["size"]
 
     n_ops = np.random.randint(min_n_ops, max_n_ops)

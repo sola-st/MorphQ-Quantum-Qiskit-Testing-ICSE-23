@@ -68,7 +68,6 @@ class Fuzzer(ABC):
             shots=shots)
         return py_file, metadata_circuit
 
-
     @abstractmethod
     def circuit_prologue(self):
         pass
@@ -78,15 +77,20 @@ class Fuzzer(ABC):
     #     pass
 
     @abstractmethod
-    def circuit_optimization_levels(self, id_target_circuit: str, level: int, target_gate_set: List[str] = None):
+    def circuit_optimization_levels(
+            self, id_target_circuit: str, level: int,
+            target_gate_set: List[str] = None):
         pass
 
     @abstractmethod
-    def register_measure(self, id_target_circuit: str, id_quantum_reg: str, id_classical_reg: str):
+    def register_measure(
+            self, id_target_circuit: str, id_quantum_reg: str,
+            id_classical_reg: str):
         pass
 
     @abstractmethod
-    def circuit_execution(self, id_target_circuit: str, backend: str, shots: int):
+    def circuit_execution(
+            self, id_target_circuit: str, backend: str, shots: int):
         pass
 
 
@@ -110,23 +114,33 @@ class QiskitFuzzer(Fuzzer):
     #     optimization += f"{id_target_circuit} = passmanager.run({id_target_circuit})\n"
     #     return optimization
 
-    def circuit_optimization_levels(self, id_target_circuit: str, level: int, target_gate_set: List[str] = None):
+    def circuit_optimization_levels(
+            self, id_target_circuit: str, level: int,
+            target_gate_set: List[str] = None):
         optimization = "\n# SECTION\n# NAME: OPTIMIZATION_LEVEL\n\n"
         optimization += "from qiskit import transpile\n"
         optimization += f"{id_target_circuit} = transpile({id_target_circuit}, basis_gates={target_gate_set}, optimization_level={level}, coupling_map=None)\n"
         return optimization
 
-    def register_measure(self, id_target_circuit: str, id_quantum_reg: str, id_classical_reg: str):
+    def register_measure(
+            self, id_target_circuit: str, id_quantum_reg: str,
+            id_classical_reg: str):
         measurement = f"\n# SECTION\n# NAME: MEASUREMENT\n\n"
         measurement += f"{id_target_circuit}.measure({id_quantum_reg}, {id_classical_reg})\n"
         return measurement
 
-    def circuit_execution(self, id_target_circuit: str, backend: str, shots: int):
+    def circuit_execution(
+            self, id_target_circuit: str, backend: str, shots: int):
         execution = "\n# SECTION\n# NAME: EXECUTION\n\n"
-        execution += "from qiskit import Aer, transpile, execute\n"
+        execution += "from qiskit_aer import AerSimulator\n"
+        execution += "from qiskit_ibm_runtime import SamplerV2 as Sampler\n"
+        execution += "from qiskit import transpile\n"
         id_backend = "backend_" + str(uuid.uuid4().hex)
-        execution += f"{id_backend} = Aer.get_backend('{backend}')\n"
-        execution += f"counts = execute({id_target_circuit}, backend={id_backend}, shots={shots}).result().get_counts({id_target_circuit})\n"
+        execution += f"{id_backend} = AerSimulator(method='{backend}')\n"
+        execution += f"sampler = Sampler(mode={id_backend})\n"
+        execution += f"{id_target_circuit} = transpile({id_target_circuit}, backend={id_backend})\n"
+        execution += f"job = sampler.run([{id_target_circuit}], shots={shots})\n"
+        execution += f"counts, {id_target_circuit} = job.result()[0].data['cr'].get_counts(), {id_target_circuit}\n"
         execution += f"RESULT = counts"
         return execution
 
@@ -136,10 +150,13 @@ class QiskitFuzzer(Fuzzer):
         str_params = [str(e) for e in numeric_prams]
         return ",".join(str_params)
 
-    def _generate_n_qubits(self, register_name: str, n_qubits: int, total_qubits: int):
+    def _generate_n_qubits(
+            self, register_name: str, n_qubits: int, total_qubits: int):
         if total_qubits == 0:
             return ""
-        numeric_qubits = np.random.choice(np.arange(total_qubits), n_qubits, replace=False)
+        numeric_qubits = np.random.choice(
+            np.arange(total_qubits),
+            n_qubits, replace=False)
         str_qubits = [f"{register_name}[{e}]" for e in numeric_qubits]
         return ", ".join(str_qubits)
 
@@ -202,7 +219,9 @@ class QiskitFuzzer(Fuzzer):
                 i_instr = f'{id_circuit}.append({op["name"]}('
                 gates_in_circuit.add(op["name"])
                 if op["n_params"] > 0:
-                    list_params: str = self._generate_n_params(n_params=op["n_params"])
+                    list_params: str = self._generate_n_params(
+                        n_params=op
+                        ["n_params"])
                     i_instr += f'{list_params}'
                 list_involved_qubits: str = self._generate_n_qubits(
                     register_name=id_quantum_reg,
@@ -236,7 +255,8 @@ class QiskitSeparableFuzzer(QiskitFuzzer):
             only_circuit: bool = False) -> Tuple[str, Dict[str, str]]:
         """Generate a circuit composed of 2 untangled qubits partitions."""
         if n_qubits < 2:
-            raise ValueError("n_qubits must be >= 2 to have separable circuits")
+            raise ValueError(
+                "n_qubits must be >= 2 to have separable circuits")
 
         size_partition_1 = random.randint(1, n_qubits - 1)
         size_partition_2 = n_qubits - size_partition_1
@@ -275,5 +295,6 @@ class QiskitSeparableFuzzer(QiskitFuzzer):
             **{"partition_1_" + k: v for k, v in metadata_1.items()},
             **{"partition_2_" + k: v for k, v in metadata_2.items()},
         }
-        metadata["gates_in_circuit"] = list(set(metadata_1).union(set(metadata_2)))
+        metadata["gates_in_circuit"] = list(
+            set(metadata_1).union(set(metadata_2)))
         return source_code, metadata

@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict, Any
 from lib.mr import MetamorphicTransformation
 
 import lib.metamorph as metamorph
-from lib.qfl import detect_divergence
+from lib.utils_qfl import detect_divergence
 
 
 class ChangeQubitOrder(MetamorphicTransformation):
@@ -31,7 +31,7 @@ class ChangeQubitOrder(MetamorphicTransformation):
                        if r["type"] == "QuantumRegister"][0]
         classical_reg = [r for r in registers
                          if r["type"] == "ClassicalRegister"][0]
-        assert(quantum_reg["size"] == classical_reg["size"])
+        assert (quantum_reg["size"] == classical_reg["size"])
 
         n_idx = quantum_reg["size"]
         idx_to_scramble = np.random.choice(
@@ -53,7 +53,7 @@ class ChangeQubitOrder(MetamorphicTransformation):
                 if (isinstance(node, ast.Subscript) and
                         isinstance(node.value, ast.Name) and
                         (node.value.id == self.id_quantum_reg or
-                        node.value.id == self.id_classical_reg) and
+                         node.value.id == self.id_classical_reg) and
                         isinstance(node.slice, ast.Index) and
                         isinstance(node.slice.value, ast.Constant) and
                         node.slice.value.value in self.mapping.keys()):

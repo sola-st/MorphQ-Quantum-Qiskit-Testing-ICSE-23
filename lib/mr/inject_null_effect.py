@@ -8,7 +8,8 @@ from typing import List, Tuple, Dict, Any
 from lib.mr import MetamorphicTransformation
 
 import lib.metamorph as metamorph
-from lib.qfl import detect_divergence
+
+from lib.utils_qfl import detect_divergence
 from lib.generation_strategy_python import *
 from lib.generation_strategy_python import Fuzzer
 
@@ -38,7 +39,7 @@ class InjectNullEffect(MetamorphicTransformation):
                        if r["type"] == "QuantumRegister"][0]
         classical_reg = [r for r in registers
                          if r["type"] == "ClassicalRegister"][0]
-        assert(quantum_reg["size"] == classical_reg["size"])
+        assert (quantum_reg["size"] == classical_reg["size"])
         n_bits_declared = quantum_reg["size"]
 
         n_ops = np.random.randint(min_n_ops, max_n_ops)

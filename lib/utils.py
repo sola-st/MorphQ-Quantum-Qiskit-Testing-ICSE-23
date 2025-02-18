@@ -43,7 +43,7 @@ def dump_metadata(
 
 
 def iterdict_types(d):
-    for k,v in d.items():
+    for k, v in d.items():
         if isinstance(v, dict):
             iterdict_types(v)
         else:
@@ -217,6 +217,7 @@ def break_function_with_timeout(
 
 # COMBINATIONS OF COMPARISONS
 
+
 def read_execution_folder(folder_with_execs, compiler_name):
     """Parse execution folder: info on the program_id and execution."""
     files = os.listdir(os.path.join(folder_with_execs, compiler_name))
@@ -286,7 +287,7 @@ def create_pairs(df_all_executions, compilers_names):
         df_a_b = pd.merge(df_a, df_b, on="program_id")
         df_pairs_all_platforms.append(df_a_b)
 
-    df_all_pairs = pd.concat(df_pairs_all_platforms, axis= 1)
+    df_all_pairs = pd.concat(df_pairs_all_platforms, axis=1)
     return df_all_pairs
 
 
@@ -307,7 +308,8 @@ def iterate_over_pairs_of_group(pairs):
 # QUANTUM CONVERSION
 
 
-def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None):
+def convert(source_folder, dest_folder, dest_format="pyquil",
+            qconvert_path=None):
     if qconvert_path is None:
         raise ValueError("qconvert_path must be specified")
     qasm_files = [f for f in os.listdir(source_folder) if f.endswith(".qasm")]
@@ -318,7 +320,8 @@ def convert(source_folder, dest_folder, dest_format="pyquil", qconvert_path=None
     print(qasm_files)
     for filename in qasm_files:
         src_filepath = os.path.join(source_folder, filename)
-        dest_filepath = os.path.join(dest_folder, filename.replace(".qasm", "_" + dest_format) + ".py")
+        dest_filepath = os.path.join(dest_folder, filename.replace(
+            ".qasm", "_" + dest_format) + ".py")
         string_to_execute = f"{qconvert_path} -h -s qasm -d {dest_format} -i {src_filepath} -o {dest_filepath}"
         print(string_to_execute)
         os.system(string_to_execute)
@@ -336,7 +339,8 @@ def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
         prefix = filename.split("_")[0]
         print(f"Executing: {filename}")
         for exec_iter in range(n_executions):
-            out_file_path = os.path.join(dest_folder, f"{prefix}_{exec_iter}.json")
+            out_file_path = os.path.join(
+                dest_folder, f"{prefix}_{exec_iter}.json")
             print(f"Saving: {out_file_path}")
             with open(out_file_path, 'w') as output_file:
                 script_to_execute = os.path.join(source_folder, filename)
@@ -354,7 +358,8 @@ def run_programs(source_folder, dest_folder, python_path=None, n_executions=1):
                 json.dump(res, output_file)
 
 
-def convert_single_program(target_program, dest_folder, dest_format="pyquil", qconvert_path=None):
+def convert_single_program(
+        target_program, dest_folder, dest_format="pyquil", qconvert_path=None):
     if qconvert_path is None:
         raise ValueError("qconvert_path must be specified")
     filename = os.path.basename(target_program)

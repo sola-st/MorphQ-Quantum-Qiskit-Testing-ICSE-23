@@ -8,7 +8,7 @@ from typing import List, Tuple, Dict, Any
 from lib.mr import MetamorphicTransformation
 
 import lib.metamorph as metamorph
-from lib.qfl import detect_divergence
+from lib.utils_qfl import detect_divergence
 
 
 class ChangeTargetBasis(MetamorphicTransformation):
@@ -42,11 +42,12 @@ class ChangeTargetBasis(MetamorphicTransformation):
                     args = [k.arg for k in node.keywords]
                     if "basis_gates" in args:
                         idx = args.index("basis_gates")
-                        node.keywords[idx].value = ast.List(elts=[
-                            ast.Constant(g_name) for g_name in self.target_gates
-                        ])
+                        node.keywords[idx].value = ast.List(
+                            elts=[ast.Constant(g_name)
+                                  for g_name in self.target_gates])
                         mr_metadata["new_basis_gates"] = self.target_gates
-                        print("Follow: gateset replaced with: ", self.target_gates)
+                        print("Follow: gateset replaced with: ",
+                              self.target_gates)
                 return node
 
         changer = BasisChanger(target_gates)

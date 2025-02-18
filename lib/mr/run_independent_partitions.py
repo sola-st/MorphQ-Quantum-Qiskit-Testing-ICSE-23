@@ -8,7 +8,7 @@ from typing import List, Tuple, Dict, Any
 from lib.mr import MetamorphicTransformation
 
 import lib.metamorph as metamorph
-from lib.qfl import detect_divergence
+from lib.utils_qfl import detect_divergence
 
 
 class RunIndependentPartitions(MetamorphicTransformation):
@@ -30,7 +30,8 @@ class RunIndependentPartitions(MetamorphicTransformation):
         sections = metamorph.get_sections(code_of_source)
         mr_metadata = {}
         # print(code_of_source)
-        circuits = metamorph.get_circuits_used(circ_definition=sections["CIRCUIT"])
+        circuits = metamorph.get_circuits_used(
+            circ_definition=sections["CIRCUIT"])
 
         # after the precondition we are guardanteed that there is only
         # one circuit
@@ -112,6 +113,7 @@ class RunIndependentPartitions(MetamorphicTransformation):
                     shift + qubit_subcircuit_idx
             mr_metadata[f"partition_{i_partition}_mapping"] = \
                 partition_mapping
+            print("Partition mapping", partition_mapping)
 
             code_new_subcircuit_header = metamorph.create_empty_circuit(
                 id_quantum_reg=f"qr_{i_partition+1}",
@@ -166,7 +168,6 @@ class RunIndependentPartitions(MetamorphicTransformation):
                 old_binding_code=sections["PARAMETER_BINDING"]
             )
 
-
         if "USELESS_ENTITIES" in sections.keys():
             sections["USELESS_ENTITIES"] = sections["USELESS_ENTITIES"].replace(
                 f"{main_circuit['name']}.add_register",
@@ -179,23 +180,30 @@ class RunIndependentPartitions(MetamorphicTransformation):
             sections_to_duplicate.append("QASM_CONVERSION")
         for sections_name in sections_to_duplicate:
             c_section = sections[sections_name]
-            new_lines = [
-                line if main_circuit["name"] not in line else "\n".join([
-                    line.replace(
-                        main_circuit["name"], f"qc_{i+1}").replace(
-                        main_circuit["quantum_register"], f"qr_{i+1}").replace(
-                        main_circuit["classical_register"], f"cr_{i+1}").replace(
-                        "counts =", f"counts_{i+1} =")
-                    for i in range(n_partitions)
-                ])
-                for line in c_section.split("\n")
-            ]
+            new_lines = [line
+                         if main_circuit["name"] not in line else "\n".join(
+                             [line.replace(
+                                 main_circuit["name"],
+                                 f"qc_{i+1}").replace(
+                                 main_circuit["quantum_register"],
+                                 f"qr_{i+1}").replace(
+                                 main_circuit["classical_register"],
+                                 f"cr_{i+1}").replace(
+                                 "counts,", f"counts_{i+1},").replace(
+                                 "job ", f"job_{i+1} ").replace(
+                                 "job.", f"job_{i+1}.")
+                              for i in range(n_partitions)])
+                         for line in c_section.split("\n")]
             new_section = "\n".join(new_lines)
             sections[sections_name] = new_section
 
         counter_identifiers = [
             "counts_" + str(i+1) for i in range(n_partitions)]
         counter_identifiers_str = ", ".join(counter_identifiers)
+
+        sections["EXECUTION"] = sections["EXECUTION"].replace(
+            "RESULT = counts",
+            f"RESULT = [{counter_identifiers_str}]")
 
         sections["EXECUTION"] = sections["EXECUTION"].replace(
             "RESULT = counts",

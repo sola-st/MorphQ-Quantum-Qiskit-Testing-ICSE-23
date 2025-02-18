@@ -9,7 +9,8 @@ import uuid
 from lib.mr import MetamorphicTransformation
 
 import lib.metamorph as metamorph
-from lib.qfl import detect_divergence
+
+from lib.utils_qfl import detect_divergence
 
 
 class AddUnusedRegister(MetamorphicTransformation):

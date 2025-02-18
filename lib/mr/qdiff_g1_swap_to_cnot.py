@@ -6,7 +6,7 @@ from typing import List, Tuple, Dict, Any
 from lib.mr import MetamorphicTransformation
 
 import lib.metamorph as metamorph
-from lib.qfl import detect_divergence
+from lib.utils_qfl import detect_divergence
 
 
 class QdiffG1SwapToCnot(MetamorphicTransformation):
@@ -20,6 +20,7 @@ class QdiffG1SwapToCnot(MetamorphicTransformation):
 
             def recursive(func):
                 """ decorator to make visitor work recursive """
+
                 def wrapper(self, node):
                     func(self, node)
                     for child in ast.iter_child_nodes(node):

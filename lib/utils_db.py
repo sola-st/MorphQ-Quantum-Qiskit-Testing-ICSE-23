@@ -17,7 +17,7 @@ def update_database(
         record: Dict[str, Any]):
     """Update the RERUN database with the following result."""
     df_single = pd.json_normalize([record])
-    dict_is_col_list = (df_single.applymap(type) == list).all()
+    dict_is_col_list = (df_single.map(type) == list).all()
     for c in df_single.columns:
         if dict_is_col_list[c]:
             df_single[c] = df_single[c].astype('str')
@@ -37,4 +37,3 @@ def get_program_ids_in_table(con: sl.Connection, table_name: str):
         FROM {table_name}
     ''', con)
     return list(present_program_id["program_id"])
-
