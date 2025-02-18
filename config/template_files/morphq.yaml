@@ -63,7 +63,7 @@ generation_strategy:
   min_n_ops: 0
   max_n_ops: 30
   backends:
-    - qasm_simulator
+    - automatic
   gate_set_dropout: 0.5
   optimizations_dropout: 0.2
   optimization_levels:
@@ -75,7 +75,7 @@ generation_strategy:
   gate_set:
     - name: C3XGate
       n_bits: 4
-      n_params: 1
+      n_params: 0
       shortname: mcx
     - name: C3SXGate
       n_bits: 4
@@ -310,31 +310,35 @@ qdiff_diff_testing:
         - 3
   ChangeBackend:
       available_backends:
-        - aer_simulator
-        - aer_simulator_statevector
-        # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
-        - statevector_simulator
-        - aer_simulator_density_matrix
-        # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
-        # the stabilizer simulator works only if the circuit can be decomposed
-        # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
-        #- aer_simulator_stabilizer
-        #- aer_simulator_extended_stabilizer
-        - aer_simulator_matrix_product_state
-        # the unitary simulators are exponential in the number of qubits.
-        #- aer_simulator_unitary
-        #- aer_simulator_unitary_gpu
-        #- unitary_simulator
-        # From Qiskit doc:
-        # "A dense superoperator matrix simulation of an ideal or noisy circuit.
-        # This simulates the superoperator matrix of the circuit itself rather
-        # than the evolution of an initial quantum state. This method can
-        # simulate ideal and noisy gates, and reset, but does not support
-        # measurement.""
-        # QiskitError: 'Data for experiment "qc" could not be found.'
-        #- aer_simulator_superop
-        - qasm_simulator
-        #- pulse_simulator
+        - automatic
+        - statevector
+        - density_matrix
+        - matrix_product_state
+        # - aer_simulator
+        # - aer_simulator_statevector
+        # # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
+        # - statevector_simulator
+        # - aer_simulator_density_matrix
+        # # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
+        # # the stabilizer simulator works only if the circuit can be decomposed
+        # # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
+        # #- aer_simulator_stabilizer
+        # #- aer_simulator_extended_stabilizer
+        # - aer_simulator_matrix_product_state
+        # # the unitary simulators are exponential in the number of qubits.
+        # #- aer_simulator_unitary
+        # #- aer_simulator_unitary_gpu
+        # #- unitary_simulator
+        # # From Qiskit doc:
+        # # "A dense superoperator matrix simulation of an ideal or noisy circuit.
+        # # This simulates the superoperator matrix of the circuit itself rather
+        # # than the evolution of an initial quantum state. This method can
+        # # simulate ideal and noisy gates, and reset, but does not support
+        # # measurement.""
+        # # QiskitError: 'Data for experiment "qc" could not be found.'
+        # #- aer_simulator_superop
+        # - qasm_simulator
+        # #- pulse_simulator
 
 
 
@@ -353,31 +357,35 @@ morphq_metamorphic_strategies:
       force_connected: true  # true | false
   ChangeBackend:
       available_backends:
-        - aer_simulator
-        - aer_simulator_statevector
-        # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
-        - statevector_simulator
-        - aer_simulator_density_matrix
-        # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
-        # the stabilizer simulator works only if the circuit can be decomposed
-        # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
-        #- aer_simulator_stabilizer
-        #- aer_simulator_extended_stabilizer
-        - aer_simulator_matrix_product_state
-        # the unitary simulators are exponential in the number of qubits.
-        #- aer_simulator_unitary
-        #- aer_simulator_unitary_gpu
-        #- unitary_simulator
-        # From Qiskit doc:
-        # "A dense superoperator matrix simulation of an ideal or noisy circuit.
-        # This simulates the superoperator matrix of the circuit itself rather
-        # than the evolution of an initial quantum state. This method can
-        # simulate ideal and noisy gates, and reset, but does not support
-        # measurement.""
-        # QiskitError: 'Data for experiment "qc" could not be found.'
-        #- aer_simulator_superop
-        - qasm_simulator
-        #- pulse_simulator
+        - automatic
+        - statevector
+        - density_matrix
+        - matrix_product_state
+        # - aer_simulator
+        # - aer_simulator_statevector
+        # # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
+        # - statevector_simulator
+        # - aer_simulator_density_matrix
+        # # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
+        # # the stabilizer simulator works only if the circuit can be decomposed
+        # # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
+        # #- aer_simulator_stabilizer
+        # #- aer_simulator_extended_stabilizer
+        # - aer_simulator_matrix_product_state
+        # # the unitary simulators are exponential in the number of qubits.
+        # #- aer_simulator_unitary
+        # #- aer_simulator_unitary_gpu
+        # #- unitary_simulator
+        # # From Qiskit doc:
+        # # "A dense superoperator matrix simulation of an ideal or noisy circuit.
+        # # This simulates the superoperator matrix of the circuit itself rather
+        # # than the evolution of an initial quantum state. This method can
+        # # simulate ideal and noisy gates, and reset, but does not support
+        # # measurement.""
+        # # QiskitError: 'Data for experiment "qc" could not be found.'
+        # #- aer_simulator_superop
+        # - qasm_simulator
+        # #- pulse_simulator
   ChangeTargetBasis:
       universal_gate_sets:
         - gates:
@@ -405,7 +413,7 @@ morphq_metamorphic_strategies:
       gate_set:
       - name: C3XGate
         n_bits: 4
-        n_params: 1
+        n_params: 0
         shortname: mcx
       - name: C4XGate
         n_bits: 5
