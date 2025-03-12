@@ -13,7 +13,7 @@ import os
 from os.path import join
 import json
 from math import sqrt
-import multiprocessing
+# import multiprocessing
 import time
 from timeit import default_timer as timer
 from typing import Dict, List, Tuple, Any, Callable
@@ -365,7 +365,7 @@ def produce_and_test_single_program_couple(config, generator):
 # LEVEL 2:
 
 
-def loop(config):
+def loop(config, budget_time_in_seconds: int):
     """Start fuzzing loop."""
     generator = eval(config["generation_strategy"]["generator_object"])()
     budget_time = config["budget_time_per_program_couple"]
@@ -378,6 +378,8 @@ def loop(config):
         between_saves = config["programs_between_coverage_checkpoints_start"]
         between_saves_cap = config["programs_between_coverage_checkpoints_cap"]
     counter_programs = 0
+    start_timestamp = time.time()
+    print("Starting loop...")
     # for i in range(3):
     while True:
         counter_programs += 1
@@ -421,24 +423,32 @@ def loop(config):
             print("New program couple.. [no timer]")
             produce_and_test_single_program_couple(config, generator)
 
+        # check if budget is over
+        c_time = time.time()
+        if budget_time_in_seconds is not None:
+            if c_time - start_timestamp > budget_time_in_seconds:
+                print("Budget time reached. Stopping loop.")
+                break
+
+
 
 # LEVEL 1:
 
 
-def start_loop(
-        config: Dict[str, Any] = None,
-        budget_time: int = None):
-    """Run the fuzzying loop."""
-    if budget_time is not None:
-        break_function_with_timeout(
-            routine=loop,
-            seconds_to_wait=budget_time,
-            message="Change 'budget_time' in config yaml file.",
-            args=(config,)
-        )
-    else:
-        print("Starting loop... [no timer]")
-        loop(config)
+# def start_loop(
+#         config: Dict[str, Any] = None,
+#         budget_time: int = None):
+#     """Run the fuzzying loop."""
+#     if budget_time is not None:
+#         break_function_with_timeout(
+#             routine=loop,
+#             seconds_to_wait=budget_time,
+#             message="Change 'budget_time' in config yaml file.",
+#             args=(config,)
+#         )
+#     else:
+#         print("Starting loop... [no timer]")
+#         loop(config)
 
 
 # LEVEL 0:
@@ -452,7 +462,7 @@ def qmtl(config_file):
     setup_environment(
         experiment_folder=config["experiment_folder"],
         folder_structure=config["folder_structure"])
-    start_loop(config, budget_time=config['budget_time'])
+    loop(config, budget_time_in_seconds=config['budget_time'])
 
 
 if __name__ == '__main__':

@@ -4,7 +4,8 @@ import yaml
 from typing import List, Dict, Tuple, Any
 import subprocess
 from subprocess import DEVNULL, STDOUT, check_call
-import multiprocessing
+# import multiprocessing
+import threading
 from itertools import combinations
 from functools import reduce
 import pandas as pd
@@ -203,17 +204,23 @@ def break_function_with_timeout(
         message: str = "Nothing to add.",
         args: List[Any] = None):
     """Break the function with timeout."""
-    p = multiprocessing.Process(
-        target=routine, name=routine.__name__, args=args)
-    p.start()
-    p.join(seconds_to_wait)
-    # If thread is active
-    if p.is_alive():
-        print(f"Timeout over ({seconds_to_wait} sec)! Killing function: '{routine.__name__}'... " +
-              message)
-        # Terminate foo
-        p.terminate()
-        p.join()
+    # Function wrapper to store result
+    def wrapper(routine, args, result):
+        result.append(routine(*args))
+
+    result = []
+    thread = threading.Thread(
+        target=wrapper,
+        args=(routine, args, result),
+        name=routine.__name__
+    )
+    thread.start()
+    thread.join(timeout=seconds_to_wait)
+
+    # If thread is still running
+    if thread.is_alive():
+        print("Function terminated due to timeout.")
+        return None
 
 # COMBINATIONS OF COMPARISONS
 

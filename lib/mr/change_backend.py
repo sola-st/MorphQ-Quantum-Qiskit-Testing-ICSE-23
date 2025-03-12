@@ -14,7 +14,9 @@ from lib.utils_qfl import detect_divergence
 class ChangeBackend(MetamorphicTransformation):
 
     def check_precondition(self, code_of_source: str) -> bool:
-        return metamorph.check_get_backend(code_of_source)
+        sections = metamorph.get_sections(code_of_source)
+        execution_area = sections["EXECUTION"]
+        return "AerSimulator(method=" in execution_area
 
     def is_semantically_equivalent(self) -> bool:
         return True
@@ -34,31 +36,47 @@ class ChangeBackend(MetamorphicTransformation):
         execution_section = sections["EXECUTION"]
         mr_metadata = {}
 
-        tree = ast.parse(execution_section)
+        # tree = ast.parse(execution_section)
 
-        class BackendChanger(ast.NodeTransformer):
+        # class BackendChanger(ast.NodeTransformer):
 
-            def __init__(self, available_backends: List[str]):
-                self.available_backends = deepcopy(available_backends)
+        #     def __init__(self, available_backends: List[str]):
+        #         self.available_backends = deepcopy(available_backends)
 
-            def visit_Call(self, node):
-                if (isinstance(node, ast.Call) and
-                        isinstance(node.func, ast.Attribute) and
-                        node.func.attr == "get_backend" and
-                        isinstance(node.args[0], ast.Constant)):
-                    if node.args[0].value in self.available_backends:
-                        self.available_backends.remove(node.args[0].value)
-                    target_backend = np.random.choice(self.available_backends)
-                    print(f"Follow: replace backend {node.args[0].value} -> " +
-                          f"{target_backend}")
-                    mr_metadata["initial_backend"] = str(node.args[0].value)
-                    mr_metadata["new_backend"] = str(target_backend)
-                    node.args[0].value = target_backend
-                return node
+        #     def visit_Call(self, node):
+        #         if (isinstance(node, ast.Call) and
+        #                 isinstance(node.func, ast.Attribute) and
+        #                 node.func.attr == "get_backend" and
+        #                 isinstance(node.args[0], ast.Constant)):
+        #             if node.args[0].value in self.available_backends:
+        #                 self.available_backends.remove(node.args[0].value)
+        #             target_backend = np.random.choice(self.available_backends)
+        #             print(f"Follow: replace backend {node.args[0].value} -> " +
+        #                   f"{target_backend}")
+        #             mr_metadata["initial_backend"] = str(node.args[0].value)
+        #             mr_metadata["new_backend"] = str(target_backend)
+        #             node.args[0].value = target_backend
+        #         return node
 
-        backend_changer = BackendChanger(available_backends)
-        modified_tree = backend_changer.visit(tree)
-        changed_section = metamorph.to_code(modified_tree)
+        # backend_changer = BackendChanger(available_backends)
+        new_backend = np.random.choice(available_backends)
+        # modified_tree = backend_changer.visit(tree)
+        # changed_section = metamorph.to_code(modified_tree)
+
+        # replace the line with "AerSimulator(method" with the new backend
+        all_lines = execution_section.split("\n")
+        new_lines = []
+        for i, line in enumerate(all_lines):
+            if "AerSimulator(method=" in line:
+                part_of_line_before_backend = line.split(
+                    "AerSimulator(method=")[0]
+                new_lines.append(
+                    part_of_line_before_backend +
+                    f" AerSimulator(method='{new_backend}')")
+            else:
+                new_lines.append(line)
+        changed_section = "\n".join(new_lines)
+
         sections["EXECUTION"] = changed_section
 
         self.metadata = mr_metadata

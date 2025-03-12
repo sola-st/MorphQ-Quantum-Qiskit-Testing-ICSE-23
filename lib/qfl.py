@@ -9,7 +9,7 @@ Programming Mantra:
 """
 import random
 import click
-import multiprocessing
+# import multiprocessing
 import time
 from timeit import default_timer as timer
 from typing import Dict, List, Tuple, Any

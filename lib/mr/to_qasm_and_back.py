@@ -19,7 +19,7 @@ class ToQasmAndBack(MetamorphicTransformation):
         execution_area = sections["EXECUTION"]
 
         no_conversion = "QASM_CONVERSION" not in sections.keys()
-        single_circuit_execution = execution_area.count("execute(") == 1
+        single_circuit_execution = execution_area.count("sampler.run(") == 1
 
         return no_conversion and single_circuit_execution
 
@@ -43,11 +43,15 @@ class ToQasmAndBack(MetamorphicTransformation):
 
         execution_area = sections["EXECUTION"]
         main_circuit_id = re.search(
-            r"\s=\sexecute\(([a-zA0-9_]+)", execution_area).group(1)
+            r"\s=\stranspile\(([a-zA0-9_]+)", execution_area).group(1)
 
         qasm_conversion_area = "\n"
-        qasm_conversion_area = f"{main_circuit_id} = " + \
-            f"QuantumCircuit.from_qasm_str({main_circuit_id}.qasm())\n"
+        qasm_conversion_area += "from qiskit.qasm2 import dumps\n"
+        qasm_conversion_area += "from qiskit.qasm2 import loads\n"
+        qasm_conversion_area += "from qiskit.qasm2 import LEGACY_CUSTOM_INSTRUCTIONS\n"
+        qasm_conversion_area += f"{main_circuit_id} = loads(dumps({main_circuit_id}), custom_instructions=LEGACY_CUSTOM_INSTRUCTIONS)\n"
+        # qasm_conversion_area = f"{main_circuit_id} = " + \
+        #     f"QuantumCircuit.from_qasm_str({main_circuit_id}.qasm())\n"
         sections["QASM_CONVERSION"] = qasm_conversion_area
 
         print(f"Follow: add '{main_circuit_id}' conversion to and from QASM " +

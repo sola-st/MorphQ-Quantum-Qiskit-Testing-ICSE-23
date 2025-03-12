@@ -49,7 +49,7 @@ class InjectParameters(MetamorphicTransformation):
 
         sections = metamorph.get_sections(code_of_source)
         execution_area = sections["EXECUTION"]
-        single_circuit_execution = execution_area.count("execute(") == 1
+        single_circuit_execution = execution_area.count("sampler.run(") == 1
 
         return len(self.concrete_values) > 0 and single_circuit_execution
 
@@ -102,9 +102,9 @@ class InjectParameters(MetamorphicTransformation):
         binding_area = sections["PARAMETER_BINDING"]
         binding_area = metamorph.remove_comments(binding_area)
         # print("Binding area: ", binding_area)
-        if "bind_parameters" not in binding_area:
+        if "assign_parameters" not in binding_area:
             binding_area += main_circuit_id + " = " \
-                + main_circuit_id + ".bind_parameters({\n"
+                + main_circuit_id + ".assign_parameters({\n"
         else:
             binding_area = binding_area.replace("})", ",")
         for param_id, param_cv in replacement_dict.items():
