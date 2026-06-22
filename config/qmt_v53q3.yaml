@@ -67,7 +67,7 @@ generation_strategy:
   min_n_ops: 0
   max_n_ops: 30
   backends:
-    - qasm_simulator
+    - automatic
   gate_set_dropout: 0.5
   optimizations_dropout: 0.2
   optimization_levels:
@@ -315,16 +315,16 @@ qdiff_diff_testing:
   ChangeBackend:
       available_backends:
         - aer_simulator
-        - aer_simulator_statevector
-        # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
+        - statevector
+        # - statevector_gpu  # cannot run GPU in multithreading
         - statevector_simulator
-        - aer_simulator_density_matrix
-        # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
+        - density_matrix
+        # - density_matrix_gpu  # cannot run GPU in multithreading
         # the stabilizer simulator works only if the circuit can be decomposed
         # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
         #- aer_simulator_stabilizer
         #- aer_simulator_extended_stabilizer
-        - aer_simulator_matrix_product_state
+        - matrix_product_state
         # the unitary simulators are exponential in the number of qubits.
         #- aer_simulator_unitary
         #- aer_simulator_unitary_gpu
@@ -337,7 +337,7 @@ qdiff_diff_testing:
         # measurement.""
         # QiskitError: 'Data for experiment "qc" could not be found.'
         #- aer_simulator_superop
-        - qasm_simulator
+        - automatic
         #- pulse_simulator
 
 
@@ -358,16 +358,16 @@ morphq_metamorphic_strategies:
   ChangeBackend:
       available_backends:
         - aer_simulator
-        - aer_simulator_statevector
-        # - aer_simulator_statevector_gpu  # cannot run GPU in multithreading
+        - statevector
+        # - statevector_gpu  # cannot run GPU in multithreading
         - statevector_simulator
-        - aer_simulator_density_matrix
-        # - aer_simulator_density_matrix_gpu  # cannot run GPU in multithreading
+        - density_matrix
+        # - density_matrix_gpu  # cannot run GPU in multithreading
         # the stabilizer simulator works only if the circuit can be decomposed
         # in the clifford group, e.g., in  CNOT, Hadamard, phase gate S gates
         #- aer_simulator_stabilizer
         #- aer_simulator_extended_stabilizer
-        - aer_simulator_matrix_product_state
+        - matrix_product_state
         # the unitary simulators are exponential in the number of qubits.
         #- aer_simulator_unitary
         #- aer_simulator_unitary_gpu
@@ -380,7 +380,7 @@ morphq_metamorphic_strategies:
         # measurement.""
         # QiskitError: 'Data for experiment "qc" could not be found.'
         #- aer_simulator_superop
-        - qasm_simulator
+        - automatic
         #- pulse_simulator
   ChangeTargetBasis:
       universal_gate_sets:
