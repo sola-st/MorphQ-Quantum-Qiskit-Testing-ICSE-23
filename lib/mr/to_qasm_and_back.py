@@ -46,8 +46,8 @@ class ToQasmAndBack(MetamorphicTransformation):
             r"\s=\stranspile\(([a-zA0-9_]+)", execution_area).group(1)
 
         # Checking which QASM version we are using
+        qasm_conversion_area = "\n"
         if int(qasm_version) == 2:
-            qasm_conversion_area = "\n"
             qasm_conversion_area += "from qiskit.qasm2 import dumps\n"
             qasm_conversion_area += "from qiskit.qasm2 import loads\n"
             qasm_conversion_area += "from qiskit.qasm2 import LEGACY_CUSTOM_INSTRUCTIONS\n"
