@@ -409,7 +409,7 @@ morphq_metamorphic_strategies:
       gate_set:
       - name: C3XGate
         n_bits: 4
-        n_params: 1
+        n_params: 0
         shortname: mcx
       - name: C4XGate
         n_bits: 5
