@@ -317,7 +317,7 @@ qdiff_diff_testing:
         - automatic
         - statevector
         # - statevector_gpu  # cannot run GPU in multithreading
-        - statevector_simulator
+        # - statevector_simulator
         - density_matrix
         # - density_matrix_gpu  # cannot run GPU in multithreading
         # the stabilizer simulator works only if the circuit can be decomposed
@@ -339,6 +339,7 @@ qdiff_diff_testing:
         #- automatic_superop
         - automatic
         #- pulse_simulator
+        #  ('automatic', 'statevector', 'density_matrix', 'stabilizer', 'matrix_product_state', 'extended_stabilizer', 'unitary', 'superop')
 
 
 
@@ -360,7 +361,7 @@ morphq_metamorphic_strategies:
         - automatic
         - statevector
         # - statevector_gpu  # cannot run GPU in multithreading
-        - statevector_simulator
+        # - statevector_simulator
         - density_matrix
         # - density_matrix_gpu  # cannot run GPU in multithreading
         # the stabilizer simulator works only if the circuit can be decomposed
