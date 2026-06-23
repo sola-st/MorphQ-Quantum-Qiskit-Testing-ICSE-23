@@ -24,16 +24,8 @@ class ToQasmAndBack(MetamorphicTransformation):
         qasm_version = int(self.mr_config["qasm_version"])
         
         # To avoid an error related to partial support of Qiskit in QASM 3
-        if qasm_version == 3:
-            has_subcircuit = (
-                "subcircuit = QuantumCircuit" in code_of_source
-                or ".append(subcircuit" in code_of_source
-            )
-            return (
-                no_conversion
-                and single_circuit_execution
-                and not has_subcircuit
-            )
+        if qasm_version == 3 and "subcircuit" in code_of_source:
+            return False
 
         return no_conversion and single_circuit_execution
 
