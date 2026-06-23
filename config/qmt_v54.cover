@@ -3,7 +3,7 @@
 branch = True
 source = /home/paltenmo/.conda/envs/ML4Quantum/lib/python3.8/site-packages/qiskit
 concurrency = multiprocessing
-data_file = data/qmt_v53/.coverage
+data_file = data/qmt_v54/.coverage
 
 [report]
 # Regexes for lines to exclude from consideration
