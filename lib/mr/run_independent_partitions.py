@@ -263,8 +263,17 @@ class RunIndependentPartitions(MetamorphicTransformation):
         used in its definition.
         """
         instructions = metamorph.get_instructions(new_circuit_code)
-        current_binding_str = re.search(
-            r"bind_parameters\(\{([a-zA0-9_ ,:\.]+)\}", old_binding_code).group(1)
+        #current_binding_str = re.search(
+        #    r"bind_parameters\(\{([a-zA0-9_ ,:\.]+)\}", old_binding_code).group(1)
+        # Assign current_binding_str only after checking it is not null
+        match = re.search(
+            r"(?:bind_parameters|assign_parameters)\(\{([a-zA-Z0-9_ ,:\.]+)\}",
+            old_binding_code
+        )
+        if match is None:
+            return ""
+        current_binding_str = match.group(1)
+
         current_binding_dict = {
             chunk.split(":")[0].strip(): float(chunk.split(":")[1])
             for chunk in current_binding_str.split(",")
