@@ -621,7 +621,7 @@ morphq_metamorphic_strategies:
       qasm_version: 3
       before_sections:
       - OPTIMIZATION_LEVEL
-      - EXECUTION
+      # - EXECUTION ## UNSUPPORTED IN QASM 3
 
 
 
