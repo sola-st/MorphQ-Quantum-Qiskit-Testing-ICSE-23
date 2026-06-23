@@ -17,10 +17,8 @@ from lib.generation_strategy_python import Fuzzer
 class InjectNullEffect(MetamorphicTransformation):
 
     def check_precondition(self, code_of_source: str) -> bool:
-        qasm_version = int(self.mr_config["qasm_version"])
-
-        # Dump in QASM 3 does not fully support subcircuit
-        if qasm_version == 3 and "qasm3.dumps" in code_of_source:
+        # Dump in QASM 3 does not fully support subcircuit 
+        if "qasm3.dumps" in code_of_source:
             return False
 
         return metamorph.check_single_circuit(code_of_source)
