@@ -1,7 +1,8 @@
 # .coveragerc to control coverage.py
 [run]
 branch = True
-source = /home/paltenmo/.conda/envs/ML4Quantum/lib/python3.8/site-packages/qiskit
+#source = /home/paltenmo/.conda/envs/ML4Quantum/lib/python3.8/site-packages/qiskit
+source = /home/ubuntu/miniconda3/envs/MorphQ-v1-2-4/lib/python3.10/site-packages/qiskit
 concurrency = multiprocessing
 data_file = data/qmt_v54/.coverage
 
