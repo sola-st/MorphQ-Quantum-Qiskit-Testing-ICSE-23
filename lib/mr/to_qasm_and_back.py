@@ -21,6 +21,20 @@ class ToQasmAndBack(MetamorphicTransformation):
         no_conversion = "QASM_CONVERSION" not in sections.keys()
         single_circuit_execution = execution_area.count("sampler.run(") == 1
 
+        qasm_version = int(self.mr_config["qasm_version"])
+        
+        # To avoid an error related to partial support of Qiskit in QASM 3
+        if qasm_version == 3:
+            has_subcircuit = (
+                "subcircuit = QuantumCircuit" in code_of_source
+                or ".append(subcircuit" in code_of_source
+            )
+            return (
+                no_conversion
+                and single_circuit_execution
+                and not has_subcircuit
+            )
+
         return no_conversion and single_circuit_execution
 
     def is_semantically_equivalent(self) -> bool:
