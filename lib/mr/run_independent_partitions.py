@@ -257,7 +257,7 @@ class RunIndependentPartitions(MetamorphicTransformation):
 
     def _circuit_specific_bindings(
             self, new_circuit_code: str, old_binding_code: str):
-        """Create n bind_parameters calls with the respective params.
+        """Create n bind_parameters calls with the respective params. This is now assign_parameters (In Qiskit 1.2.4)
 
         Note that each subcircuit will have bindings only for the parameters
         used in its definition.
@@ -296,7 +296,7 @@ class RunIndependentPartitions(MetamorphicTransformation):
                 if k in c_circuit_parameters
             }
             new_binding_code += \
-                f"{circuit_id} = {circuit_id}.bind_parameters(" + \
+                f"{circuit_id} = {circuit_id}.assign_parameters(" + \
                 f"{c_circuit_binding_dict})\n"
 
         return new_binding_code
