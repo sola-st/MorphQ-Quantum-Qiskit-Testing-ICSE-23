@@ -94,3 +94,8 @@ pip install -e .
 pip install -r requirements-QASM3.txt
 python3 -m lib.qmt config/qmt_v54q3.yaml
 ```
+
+### Known failure:
+* `ChangeTargetBasis` may generate basis sets that are not universal under Qiskit 2.3.0, causing transpilation failures (BasisTranslator errors). Restricting the generated basis sets would significantly reduce test diversity. As a result, some seeds fail on `Exceptions from execution: ... : '"Unable to translate the operations in the circuit`.
+
+* Some executions fail when AddUnusedRegister increases the circuit width beyond 15 qubits for some of the backends with `"Number of qubits (16) in qc is greater than maximum (15) in the coupling_map”`.
