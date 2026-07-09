@@ -21,7 +21,7 @@
 version: 54
 
 # FOLDER ORGANIZATION
-experiment_folder: data/qmt_v54
+experiment_folder: data/qmt_v54q3
 
 # SUBFOLDER STRUCTURE
 folder_structure:
@@ -34,7 +34,7 @@ folder_structure:
 
 # COVERAGE SETTINGS
 track_coverage: true
-coverage_settings_filepath: config/qmt_v54.cover
+coverage_settings_filepath: config/qmt_v54q3.cover
 programs_between_coverage_checkpoints_start: 64
 programs_between_coverage_checkpoints_cap: 1000
 
