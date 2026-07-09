@@ -20,3 +20,14 @@ We tested MorphQ with the following setups:
 
 **Artifact Evaluation Setup**
 We also tested it on a Ubuntu 20.04 with 64 GB of RAM and 8 cores.
+
+**Upgrade to Qiskit Version 2.3.0**
+
+This version was tested with Qiskit 2.3.0 / QASM 3:
+
+- Ubuntu 24.04 LTS
+- Python 3.10
+- Qiskit 2.3.0
+- Qiskit Aer 0.17.2
+- qiskit-ibm-runtime 0.47.0
+- qiskit-qasm3-import 0.6.0

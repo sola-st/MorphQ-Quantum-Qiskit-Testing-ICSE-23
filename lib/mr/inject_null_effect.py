@@ -17,6 +17,10 @@ from lib.generation_strategy_python import Fuzzer
 class InjectNullEffect(MetamorphicTransformation):
 
     def check_precondition(self, code_of_source: str) -> bool:
+        # Dump in QASM 3 does not fully support subcircuit 
+        if "qasm3.dumps" in code_of_source:
+            return False
+
         return metamorph.check_single_circuit(code_of_source)
 
     def is_semantically_equivalent(self) -> bool:
